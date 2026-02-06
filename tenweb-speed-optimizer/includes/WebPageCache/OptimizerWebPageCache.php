@@ -335,6 +335,24 @@ class OptimizerWebPageCache
 
     public static function delete_page_cache($dir, $is_home_url)
     {
+        // Validate directory path before deletion
+        if (empty($dir)) {
+            return;
+        }
+
+        // Ensure the directory is within the allowed cache directory
+        $real_dir = realpath($dir);
+        $real_allowed_dir = realpath(TENWEB_SO_PAGE_CACHE_DIR);
+
+        if ($real_dir === false || $real_allowed_dir === false) {
+            return;
+        }
+
+        // Prevent directory traversal - ensure path is within cache directory
+        if (strpos($real_dir, $real_allowed_dir) !== 0) {
+            return;
+        }
+
         if (is_dir($dir)) {
             foreach (scandir($dir) as $file) {
                 if ($file === '.' || $file === '..') {
@@ -342,6 +360,13 @@ class OptimizerWebPageCache
                 }
 
                 $path = $dir . $file;
+
+                // Additional safety check for each path
+                $real_path = realpath($path);
+
+                if ($real_path === false || strpos($real_path, $real_allowed_dir) !== 0) {
+                    continue;
+                }
 
                 if (is_file($path)) {
                     unlink($path); // phpcs:ignore
@@ -426,6 +451,10 @@ class OptimizerWebPageCache
     public static function get_cache_dir_for_page_from_url($url)
     {
         $parsed_url = wp_parse_url($url);
+
+        if (!isset($parsed_url['host']) || !isset($parsed_url['path'])) {
+            return TENWEB_SO_PAGE_CACHE_DIR;
+        }
 
         return self::get_cache_dir_for_page($parsed_url['host'], $parsed_url['path']);
     }

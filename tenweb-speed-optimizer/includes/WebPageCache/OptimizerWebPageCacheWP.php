@@ -289,15 +289,126 @@ class OptimizerWebPageCacheWP
 
     public function maybe_clear_page_cache()
     {
-        if (!empty($_GET['permalink']) && wp_verify_nonce('two_clear_page_cache') !== null) {
+        // Check user capabilities
+        if (!current_user_can('manage_options')) {
+            wp_die(esc_html__('You do not have sufficient permissions to access this page.', 'tenweb-speed-optimizer'), 403);
+        }
+
+        // Verify nonce
+        $nonce = isset($_GET['_wpnonce']) ? sanitize_text_field($_GET['_wpnonce']) : '';
+
+        if (!wp_verify_nonce($nonce, 'two_clear_page_cache')) {
+            wp_die(esc_html__('Security check failed. Please try again.', 'tenweb-speed-optimizer'), 403);
+        }
+
+        if (!empty($_GET['permalink'])) {
             $permalink = sanitize_url($_GET['permalink']); // phpcs:ignore
+
+            // Validate URL - reject if contains dangerous characters instead of trying to fix it
+            if (!self::is_url_safe_for_cache_clear($permalink)) {
+                status_header(400);
+                wp_die(esc_html__('Invalid URL: contains dangerous characters.', 'tenweb-speed-optimizer'), 400);
+            }
+
+            // Validate that the cache directory path stays within allowed boundaries
+            $cache_dir = OptimizerWebPageCache::get_cache_dir_for_page_from_url($permalink);
+            $cache_dir = self::validate_cache_path($cache_dir);
+
+            if ($cache_dir === false) {
+                wp_die(esc_html__('Invalid cache path detected.', 'tenweb-speed-optimizer'), 403);
+            }
+
             OptimizerUtils::clear_cloudflare_cache([$permalink]);
             OptimizerWebPageCache::delete_cache_by_url($permalink);
         }
+
         $redirect_to = (!empty($_SERVER['HTTP_REFERER'])) ? sanitize_text_field($_SERVER['HTTP_REFERER']) : '/wp-admin/edit.php';
 
         wp_safe_redirect($redirect_to);
         die;
+    }
+
+    /**
+     * Validate URL for cache clearing - reject URLs with dangerous characters
+     * Instead of trying to fix the URL, we reject it to prevent path traversal attacks
+     *
+     * @param string $url The URL to validate
+     *
+     * @return bool True if URL is safe, false if it contains dangerous characters
+     */
+    private static function is_url_safe_for_cache_clear($url)
+    {
+        if (empty($url)) {
+            return false;
+        }
+
+        $parsed_url = wp_parse_url($url);
+
+        // Must have host and path
+        if (!isset($parsed_url['host']) || !isset($parsed_url['path'])) {
+            return false;
+        }
+
+        $path = $parsed_url['path'];
+
+        // Reject if contains directory traversal sequences
+        if (strpos($path, '../') !== false || strpos($path, '..\\') !== false) {
+            return false;
+        }
+
+        // Reject if contains null bytes
+        if (strpos($path, "\0") !== false) {
+            return false;
+        }
+
+        // Reject if path contains encoded directory traversal
+        if (strpos($path, '%2e%2e%2f') !== false || strpos($path, '%2e%2e\\') !== false) {
+            return false;
+        }
+
+        // URL is safe
+        return true;
+    }
+
+    /**
+     * Validate that cache path stays within TENWEB_SO_PAGE_CACHE_DIR
+     *
+     * @param string $cache_dir The cache directory path to validate
+     *
+     * @return string|false Returns normalized path if valid, false otherwise
+     */
+    private static function validate_cache_path($cache_dir)
+    {
+        if (empty($cache_dir)) {
+            return false;
+        }
+
+        // Normalize paths for comparison
+        $cache_dir = rtrim($cache_dir, '/') . '/';
+        $allowed_dir = rtrim(TENWEB_SO_PAGE_CACHE_DIR, '/') . '/';
+
+        // First check: ensure the path starts with the allowed directory (string comparison)
+        // This works even if directories don't exist yet
+        if (strpos($cache_dir, $allowed_dir) !== 0) {
+            return false;
+        }
+
+        // Second check: use realpath if directory exists to resolve symlinks and normalize
+        $real_cache_dir = realpath($cache_dir);
+        $real_allowed_dir = realpath($allowed_dir);
+
+        // If both paths exist, verify the resolved path is still within allowed directory
+        if ($real_cache_dir !== false && $real_allowed_dir !== false) {
+            if (strpos($real_cache_dir, $real_allowed_dir) !== 0) {
+                return false;
+            }
+
+            return $real_cache_dir;
+        }
+
+        // If directory doesn't exist yet, return the normalized path if it passed string check
+        // This allows validation of paths that will be created
+        return $cache_dir;
     }
 
     public function post_row_actions($actions, $post)
