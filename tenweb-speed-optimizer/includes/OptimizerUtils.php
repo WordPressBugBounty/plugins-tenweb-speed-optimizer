@@ -1965,7 +1965,9 @@ class OptimizerUtils
     public static function two_flatten(array $array)
     {
         $return = [];
-        array_walk_recursive($array, function ($a) use (&$return) { $return[] = $a; });
+        array_walk_recursive($array, function ($a) use (&$return) {
+        $return[] = $a;
+        });
 
         return $return;
     }
@@ -2177,8 +2179,13 @@ class OptimizerUtils
             }
 
             if (0 === $id) {
-                $page_headers = wp_get_http_headers(add_query_arg([ 'two_detect_post_id' => '1' ], $page_url));
-                $id = isset($page_headers[ 'x-two-post-id' ]) ? $page_headers[ 'x-two-post-id' ] : 0;
+                $page_url_host = wp_parse_url($page_url, PHP_URL_HOST);
+                $site_url_host = wp_parse_url(get_site_url(), PHP_URL_HOST);
+
+                if ($page_url_host === $site_url_host) {
+                    $page_headers = wp_get_http_headers(add_query_arg([ 'two_detect_post_id' => '1' ], $page_url));
+                    $id = isset($page_headers[ 'x-two-post-id' ]) ? $page_headers[ 'x-two-post-id' ] : 0;
+                }
             }
             ${'two_current_page_id' . $pageUrlHash} = $id;
         } else {
@@ -2954,5 +2961,42 @@ class OptimizerUtils
         }
 
         return strtolower(TWO_SO_ORGANIZATION_NAME) == '10web' ? TENWEB_SO_URL . '/assets/images/logo_green.svg' : '';
+    }
+
+    /**
+     * Detect builder type based on active theme
+     *
+     * @return string|null Returns 'wvc' for wvc-theme, 'section_based' for tenweb-website-builder-theme, or null
+     */
+    public static function detect_builder_type()
+    {
+        if (!function_exists('wp_get_theme')) {
+            return;
+        }
+        $active_theme = wp_get_theme();
+        $theme_slug = $active_theme->get_stylesheet(); // Gets theme directory name
+        $text_domain = $active_theme->get('TextDomain');
+        $theme_name = $active_theme->get('Name');
+
+        // Check by theme directory/slug or text domain
+        if ($theme_slug === 'wvc-theme' || $text_domain === 'wvc-theme') {
+            return 'wvc';
+        }
+
+        if ($theme_slug === 'tenweb-website-builder-theme' || $text_domain === 'tenweb-website-builder-theme') {
+            return 'section_based';
+        }
+
+        // Fallback: check by theme name
+        if (stripos($theme_name, 'WordPress AI Builder') !== false ||
+            stripos($theme_name, 'wvc') !== false) {
+            return 'wvc';
+        }
+
+        if (stripos($theme_name, 'Builder Theme') !== false) {
+            return 'section_based';
+        }
+
+        return null;
     }
 }

@@ -188,6 +188,15 @@ class OptimizerMain
         $this->aggregate_css = empty($this->TwoSettings->get_settings('two_aggregate_css', false)) ? false : true;
         $this->two_delay_js_execution = empty($this->TwoSettings->get_settings('two_delay_js_execution', false)) ? false : true;
         $this->two_delay_all_js_execution = empty($this->TwoSettings->get_settings('two_delay_all_js_execution', false)) ? false : true;
+
+        if ($this->two_delay_all_js_execution) {
+            $builder_type = OptimizerUtils::detect_builder_type();
+
+            if ($builder_type === 'wvc') {
+                $this->TwoSettings->update_setting('two_delay_all_js_execution', '', false);
+                $this->two_delay_all_js_execution = false;
+            }
+        }
         $this->two_timeout_js_load = $this->TwoSettings->get_settings('two_timeout_js_load', false) === 'on';
         $this->two_delay_js_exclusions = $TwoSettings->get_settings('two_delay_js_exclusions', false);
         $this->two_test_mode = $this->TwoSettings->get_settings('two_test_mode');

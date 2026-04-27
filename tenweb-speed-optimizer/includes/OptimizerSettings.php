@@ -243,7 +243,7 @@ class OptimizerSettings
         ],
         'two_exclude_css' => [
             'type' => 'textarea',
-            'default' => 'wp-content/cache/, admin-bar.min.css, ds-gravity-forms-for-divi',
+            'default' => 'wp-content/cache/, admin-bar.min.css, ds-gravity-forms-for-divi, wvc-page-style-inline-css, wvc-theme',
             'tab' => 'css',
             'title' => 'Excluded CSS files',
             'description' => 'Specify the CSS files that should be excluded from the optimization.',
@@ -757,7 +757,7 @@ class OptimizerSettings
         'two_load_excluded_js_via_worker' => '',
         'two_load_excluded_js_normally' => '',
         'two_events_after_load' => ['DOMContentLoaded', 'Load', 'Click'],
-        'two_exclude_css' => 'wp-content/cache/, admin-bar.min.css, ds-gravity-forms-for-divi',
+        'two_exclude_css' => 'wp-content/cache/, admin-bar.min.css, ds-gravity-forms-for-divi, wvc-page-style-inline-css, wvc-theme',
         'two_lazyload' => 'on',
         'two_bg_lazyload' => 'on',
         'two_add_noscript' => 'on',
@@ -1351,6 +1351,12 @@ HTACCESS;
 
         if (defined('JETPACK__VERSION') || is_plugin_active('jetpack/jetpack.php')) {
             $this->default_settings['two_disable_jetpack_optimization'] = 'on';
+        }
+
+        $builder_type = OptimizerUtils::detect_builder_type();
+
+        if ($builder_type === 'wvc') {
+            $this->default_settings['two_delay_all_js_execution'] = '';
         }
 
         if (TWO_ALWAYS_CRITICAL && !TENWEB_SO_HOSTED_ON_10WEB) {
