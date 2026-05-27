@@ -3,7 +3,7 @@
         'name' => 'plugins/tenweb-speed-optimizer',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '1c5fe6c4774c599ef7e024842e40a11334c035d5',
+        'reference' => '662f0ddbc747da678461da3a95ec1f6ac4008619',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -68,7 +68,7 @@
         '10web/authorization' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '892d226eb8af928ed91b56a78659740b60e1c7da',
+            'reference' => '3845c14b8f394b434997fe3ffea783ba5ca871cf',
             'type' => 'library',
             'install_path' => __DIR__ . '/../10web/authorization',
             'aliases' => array(
@@ -162,7 +162,7 @@
         'plugins/tenweb-speed-optimizer' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '1c5fe6c4774c599ef7e024842e40a11334c035d5',
+            'reference' => '662f0ddbc747da678461da3a95ec1f6ac4008619',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

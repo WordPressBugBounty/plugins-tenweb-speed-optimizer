@@ -147,9 +147,9 @@
             "source": {
                 "type": "git",
                 "url": "ssh://git@gitlab.10web.io:6202/10web-utils/tenweb-authorization.git",
-                "reference": "892d226eb8af928ed91b56a78659740b60e1c7da"
+                "reference": "3845c14b8f394b434997fe3ffea783ba5ca871cf"
             },
-            "time": "2024-12-23T08:27:41+00:00",
+            "time": "2026-05-21T07:15:51+00:00",
             "default-branch": true,
             "type": "library",
             "installation-source": "source",

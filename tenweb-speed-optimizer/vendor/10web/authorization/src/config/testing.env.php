@@ -14,6 +14,20 @@ if (!defined('TENWEB_S3_BUCKET')) {
 if (!defined('TENWEB_MANAGER_ID')) {
     define('TENWEB_MANAGER_ID', 51);
 }
+
+if (!defined('TENWEB_WVC_THEME_ID')) {
+    define('TENWEB_WVC_THEME_ID', 215);
+}
+
+if (!defined('TENWEB_WVC_URL')) {
+    define('TENWEB_WVC_URL', 'https://testwvc.10web.io');
+}
+
+if (!defined('TENWEB_WVC_PRODUCT_ID')) {
+	define('TENWEB_WVC_PRODUCT_ID', 216);
+}
+
+
 if (!defined('TENWEB_DEACTIVATION_REASONS_URL')) {
     define('TENWEB_DEACTIVATION_REASONS_URL', 'https://testcore.10web.io/api/deactivation_reasons');
 }
@@ -26,6 +40,9 @@ if (!defined('TENWEBIO_API_URL')) {
 
 if(!defined('TENWEB_SO_FREE_SUBSCRIPTION_ID')) {
     define("TENWEB_SO_FREE_SUBSCRIPTION_ID",323);
+}
+if(!defined('TENWEB_AGENCY_CUSTOMER_SUBSCRIPTION_ID')) {
+    define('TENWEB_AGENCY_CUSTOMER_SUBSCRIPTION_ID', 496);
 }
 
 if(!defined('TENWEB_SO_AUTOCONNECT')) {
@@ -63,6 +80,26 @@ if(!defined('TENWEB_WOOCOM_API_URL')) {
     define('TENWEB_WOOCOM_API_URL', 'https://testwoocom.10web.io/');
 }
 
+if(!defined('TENWEB_PLATFORM_FREE_SUBSCRIPTION_ID')) {
+    define('TENWEB_PLATFORM_FREE_SUBSCRIPTION_ID',321);
+}
+
+if(!defined('TENWEB_SEND_GA_EVENT')) {
+    define('TENWEB_SEND_GA_EVENT', 'https://testcore.10web.io/api/send-ga-event');
+}
+
+if(!defined('TENWEB_FE_SERVICE')) {
+	define('TENWEB_FE_SERVICE', 'https://testfe.10web.io/');
+}
+
+if(!defined('TENWEB_BUILDER_API')) {
+	define('TENWEB_BUILDER_API', 'https://testbuilderapi.10web.io/');
+}
+
+if(!defined('TENWEB_CORE_URL')) {
+	define('TENWEB_CORE_URL', 'https://testcore.10web.io');
+}
+
 global $tenweb_services;
 
 $tenweb_services = array(
@@ -72,7 +109,8 @@ $tenweb_services = array(
   'testbackup.10web.io',
   'testmanager.10web.io',
   'testcore.10web.io',
-  'testlxd.10web.io'
+  'testlxd.10web.io',
+  'testwvc.10web.io'
 );
 
 global $tenweb_regions;

@@ -14,6 +14,15 @@ if (!defined('TENWEB_S3_BUCKET')) {
 if (!defined('TENWEB_MANAGER_ID')) {
     define('TENWEB_MANAGER_ID', 51);
 }
+if (!defined('TENWEB_WVC_THEME_ID')) {
+    define('TENWEB_WVC_THEME_ID', 215);
+}
+
+if (!defined('TENWEB_WVC_URL')) {
+    define('TENWEB_WVC_URL', 'https://devwvc.10web.io');
+}
+
+
 if (!defined('TENWEB_DEACTIVATION_REASONS_URL')) {
     define('TENWEB_DEACTIVATION_REASONS_URL', 'https://devcore.10web.io/api/deactivation_reasons');
 }
@@ -26,6 +35,10 @@ if (!defined('TENWEBIO_API_URL')) {
 
 if(!defined('TENWEB_SO_FREE_SUBSCRIPTION_ID')) {
     define("TENWEB_SO_FREE_SUBSCRIPTION_ID",323);
+}
+
+if(!defined('TENWEB_AGENCY_CUSTOMER_SUBSCRIPTION_ID')) {
+    define('TENWEB_AGENCY_CUSTOMER_SUBSCRIPTION_ID', 379);
 }
 
 if(!defined('TENWEB_SO_AUTOCONNECT')) {
@@ -72,7 +85,8 @@ $tenweb_services = array(
     'devbackup.10web.io',
     'devmanager.10web.io',
     'devcore.10web.io',
-    'devlxd.10web.io'
+    'devlxd.10web.io',
+    "devwvc.10web.io"
 );
 
 global $tenweb_regions;

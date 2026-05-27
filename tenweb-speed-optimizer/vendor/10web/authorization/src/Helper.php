@@ -33,7 +33,8 @@ class Helper
         ),
         'user_products'   => array(
             'expiration' => 86400,//24 hour
-            'block_time' => 300,//5 minute
+            'block_time' => 3600,//1 hour
+            'max_blocks' => 24,//cap backoff at 24h
         ),
     );
 
@@ -49,6 +50,35 @@ class Helper
         $this->login_instance = Login::get_instance();
         self::$network_domain_id = get_site_option('tenweb_domain_id');
         self::$domain_id = get_option('tenweb_domain_id');
+
+        add_action('tenweb_force_updates_check', array($this, 'tenweb_request_updates_check'));
+        add_action('wp_ajax_tenweb_do_updates_check', array($this, 'tenweb_update_plugins_themes_info'));
+    }
+
+    public function tenweb_request_updates_check() {
+        // Update the last check time
+        update_site_option('tenweb_last_update_check', time());
+        update_site_option('tenweb_last_update_request', time());
+        
+        // Make a non-blocking request to our update endpoint
+        wp_remote_post(admin_url('admin-ajax.php?action=tenweb_do_updates_check'), array(
+            'timeout'   => 0.01,
+            'blocking'  => false,
+            'sslverify' => false,
+            'cookies'   => array()
+        ));
+    }
+
+    public function tenweb_update_plugins_themes_info() {
+        include_once ABSPATH . WPINC . '/update.php';
+        
+        // Perform the updates
+        wp_update_plugins();
+        wp_update_themes();
+
+        if (wp_doing_ajax()) {
+            wp_send_json_success();
+        }
     }
 
     public static function get_site_info($blog_id = null, $reset = false)
@@ -87,6 +117,14 @@ class Helper
         $server_software = isset($_SERVER['SERVER_SOFTWARE']) && trim($_SERVER['SERVER_SOFTWARE']) !== '' ? $_SERVER['SERVER_SOFTWARE'] : 'unknown';
 
         $iowd_version = defined('TENWEBIO_VERSION') ? 'iowd_'. TENWEBIO_VERSION : 'iowd_';
+        
+        // Detect builder type
+        $pages_count = wp_count_posts('page');
+        $builder_type = null;
+        if ($pages_count && isset($pages_count->publish) && (int)$pages_count->publish > 0) {
+            $builder_type = self::detect_builder_type();
+        }
+        
         $site_info = array(
             'platform'            => 'wordpress',
             'site_url'            => $home_url,
@@ -112,6 +150,11 @@ class Helper
             "is_network"          => ((is_multisite()) ? 1 : 0),
             "manager_version"     =>  get_site_option(TENWEB_PREFIX . '_from_image_optimizer') ? $iowd_version : TENWEB_VERSION,
         );
+        
+        // Add builder_type as separate field if detected
+        if ($builder_type !== null) {
+            $site_info['builder_type'] = $builder_type;
+        }
 
         if (is_multisite() && is_numeric($blog_id)) {
             $blog_details = get_blog_details($blog_id);
@@ -550,15 +593,49 @@ class Helper
 
         $blocks[$key] = ($blocks[$key] == 0) ? 1 : $blocks[$key] * 2;
 
-
-        if ($blocks[$key] > 200) {
-            $blocks[$key] = 200;
+        $expiration_config = self::get_expiration($key);
+        $max_blocks = (isset($expiration_config['max_blocks'])) ? $expiration_config['max_blocks'] : 200;
+        if ($blocks[$key] > $max_blocks) {
+            $blocks[$key] = $max_blocks;
         }
 
         update_site_option(TENWEB_PREFIX . '_requests_block', $blocks);
 
         return $blocks[$key];
     }
+    /**
+     * Detect builder type based on active theme
+     * @return string|null Returns 'wvc' for wvc-theme, 'section_based' for tenweb-website-builder-theme, or null
+     */
+    public static function detect_builder_type()
+    {
+        $active_theme = wp_get_theme();
+        $theme_slug = $active_theme->get_stylesheet(); // Gets theme directory name
+        $text_domain = $active_theme->get('TextDomain');
+        $theme_name = $active_theme->get('Name');
+
+        // Check by theme directory/slug or text domain
+        if ($theme_slug === 'wvc-theme' || $text_domain === 'wvc-theme') {
+            return 'wvc';
+        }
+
+        if ($theme_slug === 'tenweb-website-builder-theme' || $text_domain === 'tenweb-website-builder-theme') {
+            return 'section_based';
+        }
+
+        // Fallback: check by theme name
+        if (stripos($theme_name, 'WordPress AI Builder') !== false ||
+            stripos($theme_name, 'wvc') !== false) {
+            return 'wvc';
+        }
+
+        if (stripos($theme_name, 'Builder Theme') !== false) {
+            return 'section_based';
+        }
+
+        return null;
+    }
+
     public static function get_fs_method()
     {
         require_once(ABSPATH . 'wp-admin/includes/file.php');
@@ -605,41 +682,40 @@ class Helper
 
     public function set_products($reset = false)
     {
-        $in_progress_key = TENWEB_PREFIX . '_setting_products_in_progress';
-        $setting_products_in_progress = get_site_transient($in_progress_key);
-
-
         $plugins = get_site_option(TENWEB_PREFIX . '_plugins_list');
         $themes = get_site_option(TENWEB_PREFIX . '_themes_list');
         $addons = get_site_option(TENWEB_PREFIX . '_addons_list');
 
         $transient = get_site_transient(TENWEB_PREFIX . '_client_products_transient');
-        if (($transient === false || $reset === true) && !$setting_products_in_progress) {
-            set_site_transient($in_progress_key, 1, 300);
+        if ($transient === false || $reset === true) {
+            $lock_key = TENWEB_PREFIX . '_products_lock';
+            $acquired = wp_cache_add($lock_key, 1, 'tenweb', 120);
 
-            $products = $this->get_products();
+            if ($acquired) {
+                $products = $this->get_products();
 
-            if (!(empty($products['plugins']) && empty($products['themes']) && empty($products['addons']))) {
-                $plugins = $products['plugins'];
-                $themes = $products['themes'];
-                $addons = $products['addons'];
+                if (!(empty($products['plugins']) && empty($products['themes']) && empty($products['addons']))) {
+                    $plugins = $products['plugins'];
+                    $themes = $products['themes'];
+                    $addons = $products['addons'];
 
-                update_site_option(TENWEB_PREFIX . '_plugins_list', $plugins);
-                update_site_option(TENWEB_PREFIX . '_themes_list', $themes);
-                update_site_option(TENWEB_PREFIX . '_addons_list', $addons);
+                    update_site_option(TENWEB_PREFIX . '_plugins_list', $plugins);
+                    update_site_option(TENWEB_PREFIX . '_themes_list', $themes);
+                    update_site_option(TENWEB_PREFIX . '_addons_list', $addons);
 
-                self::calc_request_block('user_products', true);
-                $expiration = self::get_expiration('user_products');
-                $expiration = $expiration['expiration'];
-            } else {
+                    self::calc_request_block('user_products', true);
+                    $expiration = self::get_expiration('user_products');
+                    $expiration = $expiration['expiration'];
+                } else {
+                    $block_count = self::calc_request_block('user_products');
 
-                $block_count = self::calc_request_block('user_products');
+                    $expiration = self::get_expiration('user_products');
+                    $expiration = $expiration['block_time'] * $block_count;
+                }
 
-                $expiration = self::get_expiration('user_products');
-                $expiration = $expiration['block_time'] * $block_count;
+                set_site_transient(TENWEB_PREFIX . '_client_products_transient', '1', $expiration);
+                wp_cache_delete($lock_key, 'tenweb');
             }
-
-            set_site_transient(TENWEB_PREFIX . '_client_products_transient', '1', $expiration);
         }
 
         //if first api call failed
@@ -654,8 +730,6 @@ class Helper
         self::$plugins = $products_objects['plugins'];
         self::$themes = $products_objects['themes'];
         self::$addons = $products_objects['addons'];
-
-        delete_site_transient($in_progress_key);
     }
 
     public function get_products($type = 'all')
@@ -1012,11 +1086,14 @@ class Helper
 
     public static function get_installed_plugins_wp_info()
     {
-
         if (self::$installed_plugins_wp_info === null) {
+            // Trigger an async update check if needed
+            $last_check = get_site_option('tenweb_last_update_request', 0);
+            $check_interval = 24 * HOUR_IN_SECONDS;
 
-            include_once ABSPATH . WPINC . '/update.php';
-            wp_update_plugins();
+            if (time() - $last_check > $check_interval) {
+                do_action('tenweb_force_updates_check');
+            }
             self::$installed_plugins_wp_info = get_site_transient('update_plugins');
             self::filter_installed_plugins_wp_info();
         }
@@ -1025,11 +1102,7 @@ class Helper
 
     public static function get_installed_themes_wp_info()
     {
-
         if (self::$installed_themes_wp_info === null) {
-
-            include_once ABSPATH . WPINC . '/update.php';
-            wp_update_themes();
             self::$installed_themes_wp_info = get_site_transient('update_themes');
             self::filter_installed_themes_wp_info();
         }

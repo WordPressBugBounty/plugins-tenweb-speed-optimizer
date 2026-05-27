@@ -159,7 +159,8 @@ class Login {
                 $this->domain_id = $res_obj->domain_id;
                 /* create 10web user */
 
-              //  $user = User::get_instance($res_obj->password);
+                do_action('tenweb_force_updates_check');
+                //  $user = User::get_instance($res_obj->password);
                 Helper::clear_cache();
                 Helper::check_site_state(true);
 

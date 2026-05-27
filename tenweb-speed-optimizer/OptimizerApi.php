@@ -1443,6 +1443,7 @@ class OptimizerApi
             $saved_nonce = get_site_option(TW_OPTIMIZE_PREFIX . '_saved_nonce');
 
             if ($parameters['nonce'] === $saved_nonce) {
+                delete_site_option(TW_OPTIMIZE_PREFIX . '_saved_nonce');
                 \TenWebOptimizer\OptimizerAdmin::get_instance()->connect_to_tenweb($parameters); //no need for response because of die() call inside
             } else {
                 $data_for_response = [
@@ -1450,8 +1451,8 @@ class OptimizerApi
                     'data' => 'it_was_not_me' // do not change
                 ];
                 $headers_for_response = ['tenweb_connect_from_core' => 'it_was_not_me'];
+                delete_site_option(TW_OPTIMIZE_PREFIX . '_saved_nonce');
             }
-            delete_site_option(TW_OPTIMIZE_PREFIX . '_saved_nonce');
         } else {
             $headers_for_response = ['tenweb_connect_from_core' => 'it_was_not_me'];
         }
