@@ -269,7 +269,7 @@ class OptimizerAdminBar
                         <p class="two_info_row"><?php echo esc_html(sprintf(__('Not optimized pages: %s', 'tenweb-speed-optimizer'), (int) $this->notoptimized_pages_count)); ?></p>
                         <p class="two_status_title"><?php echo esc_html(sprintf(__('%s is ON', 'tenweb-speed-optimizer'), TWO_SO_ORGANIZATION_NAME . ' Booster')); ?></p>
                         <div class="two_plan_container">
-                            <p><?php echo sprintf(__('Current Plan: %s', 'tenweb-speed-optimizer'), esc_html($this->current_plan)); ?></p>
+                            <p><?php echo esc_html(sprintf(__('Current Plan: %s', 'tenweb-speed-optimizer'), $this->current_plan)); ?></p>
                             <a href="#" class="two_clear_cache"><?php _e('Clear cache', 'tenweb-speed-optimizer'); ?></a>
                         </div>
                         <hr>
@@ -291,7 +291,7 @@ class OptimizerAdminBar
                                 <p>
                                     <?php
                                     if (!$free_reached) {
-                                        echo sprintf(__('Optimize %s more pages within the Free Plan limit.', 'tenweb-speed-optimizer'), (int) $rest_page_count);
+                                        echo esc_html(sprintf(__('Optimize %s more pages within the Free Plan limit.', 'tenweb-speed-optimizer'), (int) $rest_page_count));
                                     } else {
                                         _e('You have reached the Free plan limit.', 'tenweb-speed-optimizer'); ?>
                                 </p>
@@ -303,14 +303,14 @@ class OptimizerAdminBar
                         </div>
                         <div class="two_optimized_pages_info">
                             <p><?php _e('Optimized pages', 'tenweb-speed-optimizer'); ?></p>
-                            <p><?php echo sprintf(__('%s of %s', 'tenweb-speed-optimizer'), (int) $this->optimized_pages_count, (int) $this->total_pages_count); ?></p>
+                            <p><?php echo esc_html(sprintf(__('%s of %s', 'tenweb-speed-optimizer'), (int) $this->optimized_pages_count, (int) $this->total_pages_count)); ?></p>
                         </div>
                         <div class="two_optimized_images_info">
                             <p><?php _e('Optimized images', 'tenweb-speed-optimizer'); ?></p>
                             <?php if (empty($optimized_images_count) && empty($total_images_count)) { ?>
                                 <p class="<?php echo esc_attr($this->empty_images_count_transient); ?>"><?php _e('0', 'tenweb-speed-optimizer'); ?></p>
                             <?php } else { ?>
-                                <p><?php echo sprintf(__('%s of %s', 'tenweb-speed-optimizer'), (int) $optimized_images_count, (int) $total_images_count); ?></p>
+                                <p><?php echo esc_html(sprintf(__('%s of %s', 'tenweb-speed-optimizer'), (int) $optimized_images_count, (int) $total_images_count)); ?></p>
                             <?php } ?>
                         </div>
                         <?php if (!$free_reached) {
@@ -343,7 +343,7 @@ class OptimizerAdminBar
                         <div>
                             <div class="two_pro_container">
                                 <p class="two_pro_container_title"><?php _e('Achieve more with Booster Pro', 'tenweb-speed-optimizer'); ?></p>
-                                <p class="two_pro_option two_pro_option_diamond"><?php echo sprintf(__('Auto-optimize all %s pages and %s images', 'tenweb-speed-optimizer'), (int) $this->total_pages_count, (int) $total_images_count); ?></p>
+                                <p class="two_pro_option two_pro_option_diamond"><?php echo esc_html(sprintf(__('Auto-optimize all %s pages and %s images', 'tenweb-speed-optimizer'), (int) $this->total_pages_count, (int) $total_images_count)); ?></p>
                                 <p class="two_pro_option two_pro_option_diamond"><?php _e('Pro optimization with Cloudflare CDN', 'tenweb-speed-optimizer'); ?></p>
                                 <p class="two_pro_option"><?php _e('50% faster load times', 'tenweb-speed-optimizer'); ?></p>
                                 <p class="two_pro_option"><?php _e('30% higher PageSpeed score', 'tenweb-speed-optimizer'); ?></p>
@@ -552,11 +552,11 @@ class OptimizerAdminBar
             <?php
             if ($post_id == 'front_page') {
                 $page_title = 'Homepage'; ?>
-                <p><?php echo sprintf(__('Your %s is currently being optimized.', 'tenweb-speed-optimizer'), '<span>' . esc_html($page_title) . '</span>'); ?></p>
+                <p><?php echo wp_kses(sprintf(__('Your %s is currently being optimized.', 'tenweb-speed-optimizer'), '<span>' . esc_html($page_title) . '</span>'), ['span' => []]); ?></p>
             <?php
             } else {
                 $page_title = get_the_title($post_id); ?>
-                <p><?php echo sprintf(__('Your %s page is currently being optimized.', 'tenweb-speed-optimizer'), '<span>' . esc_html($page_title) . '</span>'); ?></p>
+                <p><?php echo wp_kses(sprintf(__('Your %s page is currently being optimized.', 'tenweb-speed-optimizer'), '<span>' . esc_html($page_title) . '</span>'), ['span' => []]); ?></p>
             <?php
             } ?>
             <p><?php _e('You will receive a notification once optimization is completed.', 'tenweb-speed-optimizer'); ?></p>
@@ -797,7 +797,7 @@ class OptimizerAdminBar
                 <?php foreach ($data['optimizing'] as $optimizing) { ?>
                     <div class="two_admin_bar_menu_content two_optimizing_container" data-post_id="<?php echo esc_attr($optimizing['post_id']); ?>">
                         <p class="two_optimizing_title"><span></span><?php _e('Optimization in progress…', 'tenweb-speed-optimizer'); ?></p>
-                        <p><?php echo sprintf(__('Your %s page is currently being optimized.', 'tenweb-speed-optimizer'), '<span>' . esc_html($optimizing['post_title']) . '</span>'); ?></p>
+                        <p><?php echo wp_kses(sprintf(__('Your %s page is currently being optimized.', 'tenweb-speed-optimizer'), '<span>' . esc_html($optimizing['post_title']) . '</span>'), ['span' => []]); ?></p>
                     </div>
                 <?php } ?>
             </div>

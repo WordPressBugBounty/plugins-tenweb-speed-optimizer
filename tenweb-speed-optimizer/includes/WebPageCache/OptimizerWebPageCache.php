@@ -462,7 +462,7 @@ class OptimizerWebPageCache
     public static function get_config($config_name)
     {
         if (self::$config === null) {
-            self::$config = json_decode(file_get_contents(WP_CONTENT_DIR . '/10web-page-cache-config/config.json'));
+            self::$config = json_decode(file_get_contents(WP_CONTENT_DIR . '/10web-page-cache-config/config.json')); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
         }
 
         return self::$config->$config_name;

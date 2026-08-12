@@ -1194,11 +1194,17 @@ class OptimizerUtils
         $merge_gf = '';
 
         if ($TwoSettings->get_settings('two_merge_google_font_faces') === 'on') {
+            // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
+            $merge_google_font_faces_js = file_get_contents(TENWEB_SO_PLUGIN_DIR . 'includes/external/js/two_merge_google_font_faces.js');
             $merge_gf = '<script ' . esc_attr(OptimizerScripts::TWO_DISABLE_PAGESPEED_DEFER_ATTRIBUTE) . ' ' . OptimizerScripts::TWO_NO_DELAYED_JS_ATTRIBUTE . ' type="text/javascript">
-                     ' . trim(JSMin::minify(file_get_contents(TENWEB_SO_PLUGIN_DIR . 'includes/external/js/two_merge_google_font_faces.js'))) . '
+                     ' . trim(JSMin::minify($merge_google_font_faces_js)) . '
         </script>';
         }
         $two_font_actions = $TwoSettings->get_settings('two_font_actions');
+        // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
+        $two_worker_js = file_get_contents(TENWEB_SO_PLUGIN_DIR . 'includes/external/js/two_worker.js');
+        // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
+        $two_delay_js = file_get_contents(TENWEB_SO_PLUGIN_DIR . 'includes/external/js/two_delay.js');
 
         return '
         <script ' . esc_attr(OptimizerScripts::TWO_DISABLE_PAGESPEED_DEFER_ATTRIBUTE) . ' ' . OptimizerScripts::TWO_NO_DELAYED_JS_ATTRIBUTE . ' type="text/javascript">
@@ -1206,11 +1212,11 @@ class OptimizerUtils
         </script>' . $merge_gf . '
          <script ' . esc_attr(OptimizerScripts::TWO_DISABLE_PAGESPEED_DEFER_ATTRIBUTE) . ' ' . OptimizerScripts::TWO_NO_DELAYED_JS_ATTRIBUTE . ' id="two_worker" type="javascript/worker">
                 let two_font_actions = "' . $two_font_actions . '";
-            ' . trim(JSMin::minify(file_get_contents(TENWEB_SO_PLUGIN_DIR . 'includes/external/js/two_worker.js'))) . '
+            ' . trim(JSMin::minify($two_worker_js)) . '
         </script>
         <script ' . esc_attr(OptimizerScripts::TWO_DISABLE_PAGESPEED_DEFER_ATTRIBUTE) . ' ' . OptimizerScripts::TWO_NO_DELAYED_JS_ATTRIBUTE . ' type="text/javascript">
                         let two_font_actions = "' . $two_font_actions . '";
-                     ' . trim(JSMin::minify(file_get_contents(TENWEB_SO_PLUGIN_DIR . 'includes/external/js/two_delay.js'))) . '
+                     ' . trim(JSMin::minify($two_delay_js)) . '
         </script>';
     }
 
@@ -2388,28 +2394,194 @@ class OptimizerUtils
     }
 
     /**
+     * Option key for critical CSS callback tokens. Uses a separator so page_id
+     * values cannot collide with unrelated options (e.g. two_critical_blocked).
+     *
+     * @param string $page_id validated critical page id
+     *
+     * @return string
+     */
+    public static function get_critical_token_option_key($page_id)
+    {
+        return 'two_critical_token_' . $page_id;
+    }
+
+    /**
+     * Whether page_id is a known critical-CSS target (not an arbitrary option suffix).
+     *
+     * @param mixed $page_id
+     *
+     * @return bool
+     */
+    public static function is_valid_critical_page_id($page_id)
+    {
+        if (!is_string($page_id) && !is_int($page_id)) {
+            return false;
+        }
+
+        $page_id = (string) $page_id;
+
+        if ($page_id === 'front_page') {
+            return true;
+        }
+
+        if ((string) absint($page_id) === $page_id && absint($page_id) > 0) {
+            return true;
+        }
+
+        if (0 === strpos($page_id, 'term_') && absint(substr($page_id, 5)) > 0) {
+            return true;
+        }
+
+        if (0 === strpos($page_id, 'user_') && absint(substr($page_id, 5)) > 0) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Store a critical CSS callback token for a page.
+     *
+     * @param string $page_id
+     * @param string $token
+     *
+     * @return void
+     */
+    public static function set_critical_token($page_id, $token)
+    {
+        if (!self::is_valid_critical_page_id($page_id) || !is_string($token) || $token === '') {
+            return;
+        }
+
+        update_option(self::get_critical_token_option_key($page_id), $token, false);
+        // Remove legacy concatenated key if present (two_critical{page_id}).
+        delete_option('two_critical' . $page_id);
+    }
+
+    /**
+     * Get stored critical CSS callback token for a page.
+     *
+     * @param string $page_id
+     *
+     * @return string|false
+     */
+    public static function get_critical_token($page_id)
+    {
+        if (!self::is_valid_critical_page_id($page_id)) {
+            return false;
+        }
+
+        $token = get_option(self::get_critical_token_option_key($page_id));
+
+        if (is_string($token) && $token !== '') {
+            return $token;
+        }
+
+        // Migrate legacy key once.
+        $legacy = get_option('two_critical' . $page_id);
+
+        if (is_string($legacy) && $legacy !== '' && !in_array($legacy, ['1', '0'], true)) {
+            self::set_critical_token($page_id, $legacy);
+
+            return $legacy;
+        }
+
+        return false;
+    }
+
+    /**
+     * Verify critical CSS callback token without consuming it.
+     *
+     * @param string $page_id
+     * @param string $token
+     *
+     * @return bool
+     */
+    public static function verify_critical_token($page_id, $token)
+    {
+        if (!self::is_valid_critical_page_id($page_id) || !is_string($token) || $token === '') {
+            return false;
+        }
+
+        $stored = self::get_critical_token($page_id);
+
+        return is_string($stored) && $stored !== '' && hash_equals($stored, $token);
+    }
+
+    /**
+     * Consume (delete) critical CSS callback token after successful delivery.
+     *
+     * @param string $page_id
+     *
+     * @return void
+     */
+    public static function consume_critical_token($page_id)
+    {
+        if (!self::is_valid_critical_page_id($page_id)) {
+            return;
+        }
+
+        delete_option(self::get_critical_token_option_key($page_id));
+        delete_option('two_critical' . $page_id);
+        \TenWebWpTransients\OptimizerTransients::delete(self::get_critical_token_option_key($page_id));
+        \TenWebWpTransients\OptimizerTransients::delete('two_critical' . $page_id);
+    }
+
+    /**
+     * Reject critical/uncritical CSS that contains HTML markup (Stored XSS breakout).
+     * Allows literal "<" in CSS values (e.g. content: "<") but blocks </style> and HTML tags.
+     *
+     * @param string $css
+     *
+     * @return string empty string if unsafe
+     */
+    public static function sanitize_critical_css($css)
+    {
+        if (!is_string($css) || $css === '') {
+            return '';
+        }
+
+        // Block </style> breakout and HTML-like tags (e.g. <img, </div), not bare "<" in strings.
+        if (preg_match('/<\/style\b|<\s*\/?\s*[a-zA-Z]/i', $css)) {
+            return '';
+        }
+
+        return $css;
+    }
+
+    /**
      * For not hosted sites
      **/
     public static function set_critical()
     {
-        if (isset($_POST['token'], $_POST['page_id']) && get_option('two_critical' . sanitize_text_field($_POST['page_id'])) === $_POST['token']) { // phpcs:ignore
-            \TenWebWpTransients\OptimizerTransients::delete('two_critical' . sanitize_text_field($_POST['page_id'])); // phpcs:ignore
+        $page_id = isset($_POST['page_id']) ? sanitize_text_field(wp_unslash($_POST['page_id'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        $token = isset($_POST['token']) ? sanitize_text_field(wp_unslash($_POST['token'])) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing
 
-            if (isset($_FILES['covered_css']) && isset($_FILES['covered_css']['tmp_name'])) {
-                //TODO: maybe sanitization must be implemented
-                $uploadfile = $_FILES['covered_css']['tmp_name']; // phpcs:ignore
-                \TenWebWpTransients\OptimizerTransients::delete('two_critical_in_process');
-                $triggerPostOptimizationTasks = !empty($_POST['newly_connected_website']) && !empty($_POST['notification_id']); // phpcs:ignore
-                update_option('two_critical_data_import_data_' . time(), $triggerPostOptimizationTasks, false);
-                \TenWebOptimizer\OptimizerCriticalCss::createCriticalCSS($uploadfile, $triggerPostOptimizationTasks);
-                echo '{"status":"ok"}';
-                die(0);
-            }
+        if (!self::verify_critical_token($page_id, $token)) {
+            die('Invalid token');
+        }
 
+        if (!isset($_FILES['covered_css']) || !isset($_FILES['covered_css']['tmp_name'])) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
             die('no covered_css data');
         }
 
-        die('Invalid token');
+        $uploadfile = $_FILES['covered_css']['tmp_name']; // phpcs:ignore WordPress.Security.NonceVerification.Missing,WordPress.Security.ValidatedSanitizedInput
+        \TenWebWpTransients\OptimizerTransients::delete('two_critical_in_process');
+        $triggerPostOptimizationTasks = !empty($_POST['newly_connected_website']) && !empty($_POST['notification_id']); // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        update_option('two_critical_data_import_data_' . time(), $triggerPostOptimizationTasks, false);
+
+        $success = \TenWebOptimizer\OptimizerCriticalCss::createCriticalCSS($uploadfile, $triggerPostOptimizationTasks, '', false, $page_id);
+
+        if ($success) {
+            // Consume only after CSS was actually saved so the cloud can retry on failure.
+            self::consume_critical_token($page_id);
+            echo '{"status":"ok"}';
+            die(0);
+        }
+
+        echo '{"status":"error"}';
+        die(0);
     }
 
     public static function download_critical()

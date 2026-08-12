@@ -83,7 +83,7 @@ class OptimizerWebPageCacheWP
             if (!file_exists(WP_CONTENT_DIR . '/advanced-cache.php')) {
                 $this->enable_page_cache();
             } else {
-                $file_content = file_get_contents(WP_CONTENT_DIR . '/advanced-cache.php');
+                $file_content = file_get_contents(WP_CONTENT_DIR . '/advanced-cache.php'); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
 
                 if (strpos($file_content, 'TENWEB_SO_ADVANCED_CACHE') === false) {
                     $this->enable_page_cache();

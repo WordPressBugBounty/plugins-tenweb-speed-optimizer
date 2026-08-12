@@ -233,7 +233,7 @@ if ($compressed_pages >= $free_plan_limit) {
                 </div>
             </div>
             <div class="two_score_block_right">
-                <p class="two_score_block_title"><?php echo sprintf(__('After %s optimization', 'tenweb-speed-optimizer'), esc_html(TWO_SO_ORGANIZATION_NAME) . ' Booster'); ?></p>
+                <p class="two_score_block_title"><?php echo esc_html(sprintf(__('After %s optimization', 'tenweb-speed-optimizer'), TWO_SO_ORGANIZATION_NAME . ' Booster')); ?></p>
                 <?php if (empty($score) || !isset($score['current_score'])
                     || !isset($score['current_score']['desktop_score']) || $reanalyze_button_status_current) {
                 $no_new_scores = 'two-no-scores';
@@ -303,9 +303,9 @@ if ($compressed_pages >= $free_plan_limit) {
             $total_pages = wp_count_posts('page')->publish + wp_count_posts('post')->publish + $terms_count;
 
             if (\TenWebOptimizer\OptimizerUtils::is_paid_user()) {
-                echo sprintf(__('%d of %d', 'tenweb-speed-optimizer'), esc_html($total_pages), esc_html($total_pages));
+                echo esc_html(sprintf(__('%d of %d', 'tenweb-speed-optimizer'), $total_pages, $total_pages));
             } else {
-                echo sprintf(__('%d of %d', 'tenweb-speed-optimizer'), esc_html($compressed_pages), esc_html($total_pages));
+                echo esc_html(sprintf(__('%d of %d', 'tenweb-speed-optimizer'), $compressed_pages, $total_pages));
             } ?>
               </p>
             </div>

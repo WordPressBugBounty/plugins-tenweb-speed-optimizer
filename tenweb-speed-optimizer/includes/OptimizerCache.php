@@ -124,7 +124,7 @@ class OptimizerCache
     {
         if ($this->check()) {
             if (false == $this->nogzip) {
-                return file_get_contents($this->cachedir . $this->filename . '.none');
+                return file_get_contents($this->cachedir . $this->filename . '.none'); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
             }
 
             return file_get_contents($this->cachedir . $this->filename); // phpcs:ignore
@@ -148,7 +148,7 @@ class OptimizerCache
         if ($this->nogzip === false) {
             // We handle gzipping ourselves.
             $file = 'default.php';
-            $phpcode = file_get_contents(TENWEB_SO_PLUGIN_DIR . 'config/' . $file);
+            $phpcode = file_get_contents(TENWEB_SO_PLUGIN_DIR . 'config/' . $file); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
             $phpcode = str_replace(['%%CONTENT%%', 'exit;'], [$mime, ''], $phpcode);
             @file_put_contents($this->cachedir . $this->filename, $phpcode); // phpcs:ignore
             @file_put_contents($this->cachedir . $this->filename . '.none', $data); // phpcs:ignore

@@ -29,7 +29,7 @@ wp_enqueue_script('two_bf_countdown_js', TENWEB_SO_URL . '/assets/js/two_bf_coun
 <p class="two_pro_container_offer_title"><?php _e('30% lifetime discount this Black Friday', 'tenweb-speed-optimizer'); ?>
     <img src="<?php echo esc_url(TENWEB_SO_URL . '/assets/images/offer_underline.png'); ?>" /></p>
 <p class="two_pro_container_title"><?php _e('Achieve more with 10Web Pro:', 'tenweb-speed-optimizer'); ?></p>
-<p class="two_pro_option two_pro_bg_flash"><?php echo sprintf(__('Auto-optimize all %s pages and %s images', 'tenweb-speed-optimizer'), esc_html($black_friday_total_pages), esc_html($black_friday_total_images)); ?></p>
+<p class="two_pro_option two_pro_bg_flash"><?php echo esc_html(sprintf(__('Auto-optimize all %s pages and %s images', 'tenweb-speed-optimizer'), $black_friday_total_pages, $black_friday_total_images)); ?></p>
 <p class="two_pro_option two_pro_bg_flash"><?php _e('Enable Cloudflare Enterprise CDN and get', 'tenweb-speed-optimizer'); ?></p>
 <p class="two_pro_option"><?php _e('Up to 60% performance boost and <100ms TTFB', 'tenweb-speed-optimizer'); ?></p>
 <p class="two_pro_option"><?php _e('Full page caching on edge network', 'tenweb-speed-optimizer'); ?></p>

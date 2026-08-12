@@ -1296,7 +1296,15 @@ class OptimizerApi
         $token = $request->get_param('token');
         $page_id = $request->get_param('page_id');
 
-        return isset($token, $page_id) && get_option('two_critical' . $page_id) === $token;
+        // Token is verified again in OptimizerUtils::set_critical() and consumed only on success.
+        // Here we only gate the REST route without consuming the token.
+        if (!isset($token, $page_id) || !OptimizerUtils::is_valid_critical_page_id($page_id) || !is_string($token) || $token === '') {
+            return false;
+        }
+
+        $stored = OptimizerUtils::get_critical_token($page_id);
+
+        return is_string($stored) && $stored !== '' && hash_equals($stored, $token);
     }
 
     public function validate_mode($param, $request, $key)

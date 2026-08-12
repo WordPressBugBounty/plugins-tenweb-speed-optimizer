@@ -188,13 +188,20 @@ class OptimizerMain
         $this->aggregate_css = empty($this->TwoSettings->get_settings('two_aggregate_css', false)) ? false : true;
         $this->two_delay_js_execution = empty($this->TwoSettings->get_settings('two_delay_js_execution', false)) ? false : true;
         $this->two_delay_all_js_execution = empty($this->TwoSettings->get_settings('two_delay_all_js_execution', false)) ? false : true;
+        $this->minify_js = empty($this->TwoSettings->get_settings('two_minify_js', false)) ? false : true;
 
-        if ($this->two_delay_all_js_execution) {
+        if ($this->two_delay_all_js_execution || $this->aggregate_js || $this->minify_js || $this->two_delay_js_execution) {
             $builder_type = OptimizerUtils::detect_builder_type();
 
             if ($builder_type === 'wvc') {
                 $this->TwoSettings->update_setting('two_delay_all_js_execution', '', false);
                 $this->two_delay_all_js_execution = false;
+                $this->TwoSettings->update_setting('two_aggregate_js', '', false);
+                $this->aggregate_js = false;
+                $this->TwoSettings->update_setting('two_delay_js_execution', '', false);
+                $this->two_delay_js_execution = false;
+                $this->TwoSettings->update_setting('two_minify_js', '', false);
+                $this->minify_js = false;
             }
         }
         $this->two_timeout_js_load = $this->TwoSettings->get_settings('two_timeout_js_load', false) === 'on';
@@ -202,7 +209,6 @@ class OptimizerMain
         $this->two_test_mode = $this->TwoSettings->get_settings('two_test_mode');
         $this->two_minify_html = $this->TwoSettings->get_settings('two_minify_html');
 
-        $this->minify_js = empty($this->TwoSettings->get_settings('two_minify_js', false)) ? false : true;
         $this->minify_css = empty($this->TwoSettings->get_settings('two_minify_css', false)) ? false : true;
 
         $this->use_extended_exception_list_js = empty($this->TwoSettings->get_settings('two_use_extended_exception_list_js', false)) ? false : true;

@@ -243,7 +243,7 @@ class OptimizerSettings
         ],
         'two_exclude_css' => [
             'type' => 'textarea',
-            'default' => 'wp-content/cache/, admin-bar.min.css, ds-gravity-forms-for-divi, wvc-page-style-inline-css, wvc-theme',
+            'default' => 'wp-content/cache/, admin-bar.min.css, ds-gravity-forms-for-divi, wvc-page-style-inline-css, wvc-theme, wvc-builds',
             'tab' => 'css',
             'title' => 'Excluded CSS files',
             'description' => 'Specify the CSS files that should be excluded from the optimization.',
@@ -757,7 +757,7 @@ class OptimizerSettings
         'two_load_excluded_js_via_worker' => '',
         'two_load_excluded_js_normally' => '',
         'two_events_after_load' => ['DOMContentLoaded', 'Load', 'Click'],
-        'two_exclude_css' => 'wp-content/cache/, admin-bar.min.css, ds-gravity-forms-for-divi, wvc-page-style-inline-css, wvc-theme',
+        'two_exclude_css' => 'wp-content/cache/, admin-bar.min.css, ds-gravity-forms-for-divi, wvc-page-style-inline-css, wvc-theme, wvc-builds',
         'two_lazyload' => 'on',
         'two_bg_lazyload' => 'on',
         'two_add_noscript' => 'on',
@@ -1357,6 +1357,9 @@ HTACCESS;
 
         if ($builder_type === 'wvc') {
             $this->default_settings['two_delay_all_js_execution'] = '';
+            $this->default_settings['two_aggregate_js'] = '';
+            $this->default_settings['two_delay_js_execution'] = '';
+            $this->default_settings['two_minify_js'] = '';
         }
 
         if (TWO_ALWAYS_CRITICAL && !TENWEB_SO_HOSTED_ON_10WEB) {

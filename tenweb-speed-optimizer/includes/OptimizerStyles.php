@@ -673,7 +673,7 @@ class OptimizerStyles extends OptimizerBase
                         $import_ok = false;
 
                         if (file_exists($path) && is_readable($path)) {
-                            $code = addcslashes(self::fixurls($path, file_get_contents($path)), '\\');
+                            $code = addcslashes(self::fixurls($path, file_get_contents($path)), '\\'); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
                             $code = preg_replace('/\x{EF}\x{BB}\x{BF}/', '', $code);
                             $tmpstyle = $code;
 
@@ -1069,6 +1069,7 @@ class OptimizerStyles extends OptimizerBase
 
             if (file_exists($file_dir)) {
                 $critical_content = file_get_contents($file_dir); // phpcs:ignore
+                $critical_content = OptimizerUtils::sanitize_critical_css($critical_content);
                 $critical_content = OptimizerUtils::replace_bg($critical_content);
 
                 if (!empty($critical_content)) {

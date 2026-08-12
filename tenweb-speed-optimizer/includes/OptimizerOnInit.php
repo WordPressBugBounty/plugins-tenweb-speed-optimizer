@@ -47,11 +47,16 @@ class OptimizerOnInit
     {
         global $TwoSettings;
 
-        if ($TwoSettings && ! get_option('two_update_default_excluded_css_list')) {
+        if (!$TwoSettings) {
+            return;
+        }
+
+        // Legacy one-time migration for ds-gravity-forms-for-divi.
+        if (!get_option('two_update_default_excluded_css_list')) {
             $newValue = 'ds-gravity-forms-for-divi';
             $old_value = $TwoSettings->get_settings('two_exclude_css');
 
-            if ($old_value && ! str_contains($old_value, $newValue)) {
+            if ($old_value && !str_contains($old_value, $newValue)) {
                 $old_value .= ',' . $newValue;
             }
             $TwoSettings->update_setting(
@@ -59,6 +64,18 @@ class OptimizerOnInit
                 $old_value
             );
             update_option('two_update_default_excluded_css_list', '1');
+        }
+
+        // One-time migration for wvc-builds (existing clients).
+        if (!get_option('two_update_excluded_css_list_wvc_builds')) {
+            $newValue = 'wvc-builds';
+            $old_value = $TwoSettings->get_settings('two_exclude_css');
+
+            if ($old_value && !str_contains($old_value, $newValue)) {
+                $old_value .= ',' . $newValue;
+                $TwoSettings->update_setting('two_exclude_css', $old_value);
+            }
+            update_option('two_update_excluded_css_list_wvc_builds', '1');
         }
     }
 

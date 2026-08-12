@@ -130,13 +130,17 @@ class OptimizerCriticalCss
             if (strpos($page_id, 'no_critical') === 0) {
                 return;
             }
+
+            if (!OptimizerUtils::is_valid_critical_page_id($page_id)) {
+                return;
+            }
             $critical_in_progress_key = 'two_critical_in_progress_' . $page_id;
             \TenWebWpTransients\OptimizerTransients::set($critical_in_progress_key, '1', 30 * MINUTE_IN_SECONDS);
 
             if (!TENWEB_SO_HOSTED_ON_10WEB || is_multisite()) {
                 $domain_id = get_site_option('tenweb_domain_id');
                 $access_token = get_site_option(TENWEB_PREFIX . '_access_token');
-                $critical_token = get_option('two_critical' . $page_id);
+                $critical_token = OptimizerUtils::get_critical_token($page_id);
 
                 if (!$critical_token || empty($critical_token)) {
                     $critical_token = wp_generate_uuid4() . bin2hex(random_bytes(12));
@@ -212,7 +216,7 @@ class OptimizerCriticalCss
                     }
                     OptimizerLogger::add_critical_css_log($request_data, $newly_connected_website, $flow_id, wp_remote_retrieve_response_code($res), wp_remote_retrieve_body($res));
                 }
-                update_option('two_critical' . $page_id, $critical_token, false);
+                OptimizerUtils::set_critical_token($page_id, $critical_token);
             } elseif (true === TenwebServices::manager_ready()) {
                 $response = TenwebServices::do_request(TENWEB_API_URL . '/domains/critical-css', [
                     'body' => [
@@ -362,13 +366,13 @@ class OptimizerCriticalCss
 
             if (isset($this->two_critical_pages[$id]['images_in_viewport']) && !empty($this->two_critical_pages[$id]['images_in_viewport'])) {
                 if (file_exists(TWO_CACHE_DIR . 'critical/' . $this->two_critical_pages[$id]['images_in_viewport'])) {
-                    $this->images_in_viewport = json_decode(file_get_contents(TWO_CACHE_DIR . 'critical/' . $this->two_critical_pages[$id]['images_in_viewport']));
+                    $this->images_in_viewport = json_decode(file_get_contents(TWO_CACHE_DIR . 'critical/' . $this->two_critical_pages[$id]['images_in_viewport'])); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
                 }
             }
 
             if (isset($this->two_critical_pages[$id]['critical_fonts']) && !empty($this->two_critical_pages[$id]['critical_fonts'])) {
                 if (file_exists(TWO_CACHE_DIR . 'critical/' . $this->two_critical_pages[$id]['critical_fonts'])) {
-                    $this->critical_fonts = json_decode(file_get_contents(TWO_CACHE_DIR . 'critical/' . $this->two_critical_pages[$id]['critical_fonts']));
+                    $this->critical_fonts = json_decode(file_get_contents(TWO_CACHE_DIR . 'critical/' . $this->two_critical_pages[$id]['critical_fonts'])); // phpcs:ignore WordPressVIPMinimum.Performance.FetchingRemoteData.FileGetContentsUnknown
                 }
             }
 
@@ -501,7 +505,18 @@ class OptimizerCriticalCss
         return $return_data;
     }
 
-    public static function createCriticalCSS($file_path, $firstImportOfCss = false, $file_content = '', $css_import_no_rest = false)
+    /**
+     * Create / import critical CSS from uploaded JSON or string payload.
+     *
+     * @param string|false $file_path
+     * @param bool         $firstImportOfCss
+     * @param string       $file_content
+     * @param bool         $css_import_no_rest
+     * @param string|null  $expected_page_id   when set, JSON page_id must match (callback auth)
+     *
+     * @return bool true only when critical CSS was successfully written for the page
+     */
+    public static function createCriticalCSS($file_path, $firstImportOfCss = false, $file_content = '', $css_import_no_rest = false, $expected_page_id = null)
     {
         do_action('two_before_create_critical_css', debug_backtrace()); //phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_debug_backtrace
         OptimizerUtils::init_defines();
@@ -510,6 +525,7 @@ class OptimizerCriticalCss
             define('TWO_CACHE_DIR', OptimizerCache::get_path());
         }
         global $TwoSettings;
+        $success = false;
 
         if (!empty($file_content) || (file_exists($file_path) && is_readable($file_path))) {
             try {
@@ -527,12 +543,30 @@ class OptimizerCriticalCss
                         if (isset($critical_data['subscription_id']) && (int) $critical_data['subscription_id'] > 0) {
                             \TenWebWpTransients\OptimizerTransients::set(TENWEB_PREFIX . '_subscription_id', (int) $critical_data['subscription_id'], 12 * HOUR_IN_SECONDS);
                         }
-                        $page_id = $critical_data['page_data']['page_id'];
+                        $page_id = sanitize_text_field($critical_data['page_data']['page_id']);
+
+                        if (!OptimizerUtils::is_valid_critical_page_id($page_id)) {
+                            return false;
+                        }
+
+                        // Callback must only write CSS for the page that was authorized.
+                        if (null !== $expected_page_id && (string) $expected_page_id !== (string) $page_id) {
+                            return false;
+                        }
+
                         $critical_key = 'two_critical_' . $page_id;
                         \TenWebWpTransients\OptimizerTransients::delete($critical_key);
 
                         if (isset($two_critical_pages[$page_id])) {
                             $critical_page = $two_critical_pages[$page_id];
+
+                            if (isset($critical_data['critical_css']) && !empty($critical_data['critical_css'])) {
+                                $critical_data['critical_css'] = OptimizerUtils::sanitize_critical_css($critical_data['critical_css']);
+                            }
+
+                            if (isset($critical_data['uncritical_css']) && !empty($critical_data['uncritical_css'])) {
+                                $critical_data['uncritical_css'] = OptimizerUtils::sanitize_critical_css($critical_data['uncritical_css']);
+                            }
 
                             if (isset($critical_data['critical_css']) && !empty($critical_data['critical_css'])) {
                                 $cssMinifier = new OptimizerCSSMin();
@@ -605,6 +639,7 @@ class OptimizerCriticalCss
                                         OptimizerUtils::update_post();
                                     }
                                 }
+                                $success = true;
                             } else {
                                 update_option('two_critical_blocked', true);
                                 $critical_page['status'] = 'error';
@@ -635,6 +670,7 @@ class OptimizerCriticalCss
                 }
             } catch (Exception $exception) {
                 update_option('two_critical_data_import_exception_' . time(), $exception->getMessage() . ' on ' . $exception->getLine() . ' in ' . $exception->getFile(), false);
+                $success = false;
             }
         }
 
@@ -646,5 +682,7 @@ class OptimizerCriticalCss
             // phpcs:ignore Squiz.PHP.CommentedOutCode.Found
             //OptimizerUtils::triggerPostOptimizationTasks();
         }
+
+        return $success;
     }
 }
