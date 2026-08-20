@@ -133,7 +133,9 @@ function two_connect_script(i, scripts_list=null) {
 
     if(i === 0 && event){
         two_event = event;
-        event.preventDefault();
+        if (typeof two_is_native_editable !== "function" || !two_is_native_editable(event.target)) {
+            event.preventDefault();
+        }
     }
 
     if(scripts_list === null){

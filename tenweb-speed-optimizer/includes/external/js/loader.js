@@ -34,6 +34,26 @@ function applyViewCss (cssUrl) {
 
 }
 
+function two_is_native_editable(el) {
+    if (!el) {
+        return false;
+    }
+    if (el.nodeType !== 1) {
+        el = el.parentElement;
+    }
+    while (el) {
+        if (el.isContentEditable) {
+            return true;
+        }
+        var tag = el.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+            return true;
+        }
+        el = el.parentElement;
+    }
+    return false;
+}
+
 var two_scripts_load = true;
 var two_load_delayed_javascript = function (event) {
     if(two_scripts_load){
@@ -49,6 +69,9 @@ var two_load_delayed_javascript = function (event) {
     }
 };
 function two_loading_events(event){
+    if (two_is_native_editable(event && event.target)) {
+        return;
+    }
     setTimeout(function(event) {
         return function() {
             var t = function(eventType, elementClientX, elementClientY) {
