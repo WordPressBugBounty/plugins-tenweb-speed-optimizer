@@ -55,15 +55,16 @@ class OptimizerAdmin
         $this->page_url = OptimizerUtils::get_page_url();
         $two_triggerPostOptimizationTasks = get_option('two_triggerPostOptimizationTasks');
 
-        // if (!empty($_GET['nonce']) && wp_verify_nonce($_GET['nonce'], 'two_10web_connection')) {
-        // wp_verify_nonce has been changed as the request from the core service isn't able to pass nonce verification//
-        if (!empty($_GET['nonce']) && wp_verify_nonce($_GET['nonce'], 'two_10web_connection')) { //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        if (!empty($_GET['nonce']) && wp_verify_nonce($_GET['nonce'], 'two_10web_connection') //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+            && OptimizerUtils::check_admin_capabilities()) {
             add_action('admin_init', [$this, 'connect_to_tenweb']); //changed from in_admin_header hook, because of gallery flow, ask Hrach and Serine why
         } elseif (isset($_GET['two_disconnect'])) {
-            if (isset($_GET['nonce']) && wp_verify_nonce($_GET['nonce'], 'two_disconnect_nonce')) { //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+            if (isset($_GET['nonce']) && wp_verify_nonce($_GET['nonce'], 'two_disconnect_nonce') //phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+                && OptimizerUtils::check_admin_capabilities()) {
                 add_action('in_admin_header', ['\TenWebOptimizer\OptimizerAdmin', 'disconnect_from_tenweb']);
             }
-        } elseif (!empty($_GET['new_connection_flow']) && !empty($_GET['connection_error']) && empty($_GET['old_connection_flow'])) {
+        } elseif (!empty($_GET['new_connection_flow']) && !empty($_GET['connection_error']) && empty($_GET['old_connection_flow'])
+            && OptimizerUtils::check_admin_capabilities()) {
             \TenWebOptimizer\OptimizerUtils::two_redirect(OptimizerUtils::get_tenweb_connection_link('sign-up', ['old_connection_flow' => 1]));
         }
         add_action('delete_post', [$this, 'delete_optimized_pages_by_id']);
@@ -511,6 +512,10 @@ class OptimizerAdmin
 
     public function connect_to_tenweb($parameters = null)
     {
+        if ($parameters === null && !OptimizerUtils::check_admin_capabilities()) {
+            return;
+        }
+
         if (empty($parameters)) {
             $parameters = [];
             $parameters['email'] = !empty($_GET['email']) ? sanitize_email($_GET['email']) : null; //phpcs:ignore WordPress.Security.NonceVerification.Recommended

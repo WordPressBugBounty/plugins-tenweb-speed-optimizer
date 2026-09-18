@@ -129,12 +129,16 @@ function two_connect_style(data, fixed_google_font=false) {
 
 var two_event ;
 
-function two_connect_script(i, scripts_list=null) {
+function two_connect_script(i, scripts_list=null, trigger_event=null) {
+    if (trigger_event === null && typeof event !== "undefined") {
+        trigger_event = event;
+    }
 
-    if(i === 0 && event){
-        two_event = event;
-        if (typeof two_is_native_editable !== "function" || !two_is_native_editable(event.target)) {
-            event.preventDefault();
+    if(i === 0 && trigger_event){
+        // Skip preventDefault/replay for native editable fields (needed for iOS caret).
+        if (typeof two_is_native_editable !== "function" || !two_is_native_editable(trigger_event.target)) {
+            two_event = trigger_event;
+            trigger_event.preventDefault();
         }
     }
 

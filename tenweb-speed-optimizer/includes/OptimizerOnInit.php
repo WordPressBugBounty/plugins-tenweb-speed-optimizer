@@ -8,6 +8,7 @@ class OptimizerOnInit
     {
         add_action('init', [ $this, 'two_register_meta']);
         add_action('init', [ $this, 'two_plugin_add_new_image_size']);
+        add_filter('is_protected_meta', [ $this, 'two_protect_critical_pages_meta' ], 10, 3);
         add_action('admin_bar_menu', [ $this, 'two_admin_bar'], 71);
 
         if (strtolower(TWO_SO_ORGANIZATION_NAME) == '10web' && !\TenWebOptimizer\OptimizerUtils::is_paid_user()) {
@@ -77,6 +78,15 @@ class OptimizerOnInit
             }
             update_option('two_update_excluded_css_list_wvc_builds', '1');
         }
+    }
+
+    public function two_protect_critical_pages_meta($protected, $meta_key, $meta_type)
+    {
+        if ($meta_type === 'post' && $meta_key === 'two_critical_pages') {
+            return true;
+        }
+
+        return $protected;
     }
 
     public function two_register_meta()

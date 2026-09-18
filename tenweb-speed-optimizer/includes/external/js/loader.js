@@ -58,13 +58,21 @@ var two_scripts_load = true;
 var two_load_delayed_javascript = function (event) {
     if(two_scripts_load){
         two_scripts_load = false;
-        two_connect_script(0);
-        if(typeof two_delay_custom_js_new == "object"){
-            document.dispatchEvent(two_delay_custom_js_new)
+        var startConnect = function () {
+            two_connect_script(0, null, event);
+            if(typeof two_delay_custom_js_new == "object"){
+                document.dispatchEvent(two_delay_custom_js_new)
+            }
+        };
+        // Defer script connect on editable fields so iOS can apply native caret/focus first.
+        if (two_is_native_editable(event && event.target)) {
+            setTimeout(startConnect, 0);
+        } else {
+            startConnect();
         }
-        window.two_delayed_loading_events.forEach(function (event) {
+        window.two_delayed_loading_events.forEach(function (eventName) {
             console.log("removed event listener");
-            document.removeEventListener(event, two_load_delayed_javascript, false)
+            document.removeEventListener(eventName, two_load_delayed_javascript, false)
         });
     }
 };

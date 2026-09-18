@@ -1558,6 +1558,10 @@ class OptimizerUtils
 
     public static function get_tenweb_connection_link($endpoint = 'sign-up', $args = [])
     {
+        if (!self::check_admin_capabilities()) {
+            return '';
+        }
+
         // copied from manager.py
         $return_url = get_admin_url() . 'admin.php';
 
@@ -1666,7 +1670,14 @@ class OptimizerUtils
         $result = [];
 
         foreach ($query as $row) {
-            $result[ $row->post_id ] = unserialize($row->meta_value); // phpcs:ignore
+            $value = is_serialized($row->meta_value)
+                ? unserialize($row->meta_value, ['allowed_classes' => false]) // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.serialize_unserialize
+                : $row->meta_value;
+
+            if (!is_array($value)) {
+                continue;
+            }
+            $result[ (int) $row->post_id ] = $value;
         }
 
         return $result;
@@ -2301,6 +2312,22 @@ class OptimizerUtils
 
     public static function check_page_has_no_redirects($url, $arg = true)
     {
+        $normalize_host = static function ($host) {
+            $host = strtolower((string) $host);
+
+            return preg_replace('/^www\./', '', $host);
+        };
+
+        $url_host = $normalize_host(wp_parse_url($url, PHP_URL_HOST));
+        $allowed_hosts = array_unique(array_filter([
+            $normalize_host(wp_parse_url(home_url(), PHP_URL_HOST)),
+            $normalize_host(wp_parse_url(site_url(), PHP_URL_HOST)),
+        ]));
+
+        if ($url_host === '' || !in_array($url_host, $allowed_hosts, true)) {
+            return false;
+        }
+
         if ($arg) {
             $url = add_query_arg([
                 'two_check_redirect' => '1',
@@ -2529,12 +2556,32 @@ class OptimizerUtils
     }
 
     /**
+     * Whether critical CSS has no real rules (cloud placeholders and/or comments only).
+     *
+     * @param string $css
+     *
+     * @return bool
+     */
+    public static function is_placeholder_only_critical_css($css)
+    {
+        if (!is_string($css) || $css === '') {
+            return true;
+        }
+
+        $content = preg_replace('/\/\*\s*\{two_replace[a-fA-F0-9]+\}\s*\*\//', '', $css) ?? '';
+        $content = preg_replace('/\/\*.*?\*\//s', '', $content) ?? '';
+        $content = trim(preg_replace('/\s+/', '', $content) ?? '');
+
+        return $content === '';
+    }
+
+    /**
      * Reject critical/uncritical CSS that contains HTML markup (Stored XSS breakout).
      * Allows literal "<" in CSS values (e.g. content: "<") but blocks </style> and HTML tags.
      *
      * @param string $css
      *
-     * @return string empty string if unsafe
+     * @return string empty string if unsafe or placeholder-only
      */
     public static function sanitize_critical_css($css)
     {
@@ -2544,6 +2591,10 @@ class OptimizerUtils
 
         // Block </style> breakout and HTML-like tags (e.g. <img, </div), not bare "<" in strings.
         if (preg_match('/<\/style\b|<\s*\/?\s*[a-zA-Z]/i', $css)) {
+            return '';
+        }
+
+        if (self::is_placeholder_only_critical_css($css)) {
             return '';
         }
 
