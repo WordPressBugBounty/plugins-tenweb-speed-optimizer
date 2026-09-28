@@ -490,9 +490,14 @@ abstract class OptimizerBase
         }
 
         if ($found) {
-            $content = preg_replace_callback($re_replace_pattern, function ($matches) use ($marker) {
+            $replaced = preg_replace_callback($re_replace_pattern, function ($matches) use ($marker) {
                 return OptimizerBase::build_marker($marker, $matches[0]);
             }, $content);
+
+            // PCRE returns null on failure (e.g. backtrack limit on a huge block): keep the content unhidden instead of losing it.
+            if (null !== $replaced) {
+                $content = $replaced;
+            }
         }
 
         return $content;
@@ -501,7 +506,8 @@ abstract class OptimizerBase
     public static function restore_marked_content($marker, $content)
     {
         if (false !== strpos($content, $marker)) {
-            $content = preg_replace_callback('#%%' . $marker . TWO_HASH . '%%(.*?)%%' . $marker . '%%#is', function ($matches) {
+            // Marker data is base64 (build_marker); a plain character class stays linear on huge blocks, ".*?" hit the backtrack limit.
+            $content = preg_replace_callback('#%%' . $marker . TWO_HASH . '%%([A-Za-z0-9+/=]*+)%%' . $marker . '%%#i', function ($matches) {
                 return base64_decode($matches[1]);
             }, $content);
         }

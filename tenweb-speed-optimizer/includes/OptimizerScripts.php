@@ -599,11 +599,9 @@ class OptimizerScripts extends OptimizerBase
                         if (isset($code[1])) {
                             // Restore comments to fix inline js containing html comment.
                             $js_code = $this->restore_comments($code[1]);
-                            // Encode the js to keep unicode characters after decode.
-                            $inline_code = base64_encode(rawurlencode($js_code));
                             $dealy_script_data = [
                                 'inline' => true,
-                                'code' => $inline_code,
+                                'code' => $js_code,
                                 'id' => $script_id,
                                 'uid' => $delay_uid,
                                 'exclude_blob' => false,
@@ -731,11 +729,21 @@ class OptimizerScripts extends OptimizerBase
                 } else {
                     //this tag is for delay
                     if ($this->delay_js_execution && $this->isfordelay($tag, $this->delayed_js)) {
-                        $type = OptimizerUtils::get_javascipt_type($tag);
+                        // Only classic JS can run from a Blob URL: leave JSON-LD, templates and modules untouched.
+                        if (!$should_aggregate) {
+                            $tag = '';
+                            continue;
+                        }
                         preg_match('#<script.*>(.*)</script>#Usmi', $tag, $code);
 
                         if (isset($code[1])) {
-                            $newTag = '<script ' . self::TWO_DELAYED_JS_ATTRIBUTE . '="data:' . $type . ';base64,' . base64_encode($code[1]) . '"></script>';
+                            // Restore hidden markers now: restoring them later would put raw HTML inside the JSON string.
+                            $js_code = $this->restore_noptimize($this->restore_iehacks($this->restore_comments($code[1])));
+                            $delay_uid = uniqid('two_', false);
+                            $newTag = '<script ' . esc_attr(self::TWO_DISABLE_PAGESPEED_DEFER_ATTRIBUTE) . ' ' . self::TWO_NO_DELAYED_JS_ATTRIBUTE . ' type="text/javascript">'
+                                . 'window.two_delayed_inline_js = window.two_delayed_inline_js || {}; window.two_delayed_inline_js["' . $delay_uid . '"] = '
+                                . json_encode($js_code, JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) . ';</script>' // phpcs:ignore
+                                . '<script ' . self::TWO_DELAYED_JS_ATTRIBUTE . '="inline" data-two_delay_id="' . $delay_uid . '"></script>';
                             $this->content = str_replace($tag, $newTag, $this->content);
                             $this->cacheStructure->addToTagsToReplace($tag, $newTag);
 
@@ -983,7 +991,7 @@ class OptimizerScripts extends OptimizerBase
             }
 
             $this->two_js_list[] = [
-                'code' => base64_encode('
+                'code' => '
 
                 if (window.two_page_loaded) {
                     console.log("dispatching events");' .
@@ -996,7 +1004,7 @@ class OptimizerScripts extends OptimizerBase
                         document.dispatchEvent(new Event("DOMContentLoaded"));
                     });
                 }
-                '),
+                ',
                 'inline' => true,
                 'uid' => 'two_dispatchEvent_script',
             ];

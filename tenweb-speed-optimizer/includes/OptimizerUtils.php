@@ -1104,13 +1104,6 @@ class OptimizerUtils
         return $extracted;
     }
 
-    public static function get_javascipt_type($tag)
-    {
-        preg_match('/type="(.+?)"/', $tag, $matches);
-
-        return isset($matches[1]) ? $matches[1] : 'text/javascript';
-    }
-
     /**
      * Injects/replaces the given payload markup into `$this->content`
      * at the specified location.

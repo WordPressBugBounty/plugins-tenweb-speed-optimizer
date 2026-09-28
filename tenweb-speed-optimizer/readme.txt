@@ -4,7 +4,7 @@ Tags: cache, speed, optimize, performance, pagespeed, web vitals, critical css
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.34.1
+Stable tag: 2.34.5
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -271,6 +271,18 @@ Yes. 10Web Booster is an all-in-one solution for optimizing websites. It impleme
 
 
 == Changelog ==
+
+= 2.34.5 =
+Improved: Minor improvements
+
+= 2.34.4 =
+Improved: Small bug fixes
+
+= 2.34.2 =
+Improved: Delayed inline JavaScript is output as plain, readable code
+Fixed: Background lazy load changing text inside scripts
+Fixed: Delay JS execution running JSON-LD, template, module and consent-blocked scripts as JavaScript
+Fixed: Blank page when a page has a very large inline script
 
 = 2.34.1 =
 Improved: Security for page redirect checks

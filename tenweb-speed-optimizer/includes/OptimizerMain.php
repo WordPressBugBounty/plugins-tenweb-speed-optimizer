@@ -584,14 +584,16 @@ class OptimizerMain
 
                 if (window.two_delayed_js_load_libs_first === "on" ) {
                     delayedScripts = delayedScripts.sort(function (a, b) {
-                                           isLiba = a.outerHTML.indexOf("data:");
-                                           isLibb = b.outerHTML.indexOf("data:");
+                                           var isInline = function (el) { var v = el.getAttribute(window.two_delayed_loading_attribute); return v === "inline" || v.indexOf("data:") === 0 ? 1 : 0; };
 
-                                           return isLiba - isLibb;
+                                           return isInline(a) - isInline(b);
                                         });
                 }
                 delayedScripts.forEach(function(elem) {
                     var src = elem.getAttribute(window.two_delayed_loading_attribute);
+                    if (src === "inline") {
+                        src = URL.createObjectURL(new Blob([(window.two_delayed_inline_js || {})[elem.getAttribute("data-two_delay_id")] || ""], {type: "text/javascript;charset=utf-8"}));
+                    }
                     elem.setAttribute("src", src);
                     elem.removeAttribute(window.two_delayed_loading_attribute);
                     window.two_delayed_loading_events.forEach(function(event) {
@@ -1041,7 +1043,10 @@ class OptimizerMain
         }
 
         if ($this->two_bg_lazyload === 'on') {
-            $content = OptimizerUtils::replace_bg($content);
+            // Keep replace_bg out of <script> text (inline JS and the delayed-JS payloads).
+            $hidden = OptimizerBase::replace_contents_with_marker_if_exists('SCRIPT', '<script', '#<(?:no)?script.*?<\/(?:no)?script>#is', $content);
+            $restored = is_string($hidden) ? OptimizerBase::restore_marked_content('SCRIPT', OptimizerUtils::replace_bg($hidden)) : null;
+            $content = is_string($restored) ? $restored : OptimizerUtils::replace_bg($content);
         }
 
         if ($this->two_lazyload == 'on') {
@@ -1067,8 +1072,9 @@ class OptimizerMain
 
     private function get_two_worker_data_script_tag($data, $suffix = '')
     {
+        // JSON_HEX_TAG keeps "<" and ">" out of the payload: "<!--<script" would swallow the closing tag, and later passes match "<img".
         return '<script ' . esc_attr(OptimizerScripts::TWO_DISABLE_PAGESPEED_DEFER_ATTRIBUTE) . ' ' . esc_attr(OptimizerScripts::TWO_NO_DELAYED_JS_ATTRIBUTE) . ' ' .
-            'type="text/javascript" >var two_worker_data' . $suffix . ' = ' . json_encode($data) . '</script>'; // phpcs:ignore
+            'type="text/javascript" >var two_worker_data' . $suffix . ' = ' . json_encode($data, JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE) . '</script>'; // phpcs:ignore
     }
 
     private function check_cache_dir($dir)

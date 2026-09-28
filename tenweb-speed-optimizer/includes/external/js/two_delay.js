@@ -154,9 +154,8 @@ function two_connect_script(i, scripts_list=null, trigger_event=null) {
         script.type = "text/javascript";
         script.async = false;
         if(scripts_list[i].inline){
-            // Decode previously encoded script to get unicode characters working.
-            var js_code = decodeURIComponent( atob( scripts_list[i].code ) );
-            var blob = new Blob([js_code], {type : "text/javascript"});
+            // Inline code is plain text, JSON-escaped server-side.
+            var blob = new Blob([scripts_list[i].code], {type : "text/javascript;charset=utf-8"});
             scripts_list[i].url = URL.createObjectURL(blob);
         }
         if(current_script != null && typeof scripts_list[i].url != "undefined"){
