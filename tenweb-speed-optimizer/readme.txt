@@ -4,7 +4,7 @@ Tags: cache, speed, optimize, performance, pagespeed, web vitals, critical css
 Requires at least: 5.0
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 2.34.5
+Stable tag: 2.34.8
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -271,6 +271,12 @@ Yes. 10Web Booster is an all-in-one solution for optimizing websites. It impleme
 
 
 == Changelog ==
+
+= 2.34.8 =
+Fixed: Page cache handling of unusual URLs
+
+= 2.34.7 =
+Fixed: Security fix in page cache path handling
 
 = 2.34.5 =
 Improved: Minor improvements

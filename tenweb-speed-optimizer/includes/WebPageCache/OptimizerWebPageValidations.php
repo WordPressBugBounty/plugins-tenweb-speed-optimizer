@@ -99,6 +99,13 @@ class OptimizerWebPageValidations
             return false;
         }
 
+        foreach ($this->get_cookies() as $cookie_value) {
+            // An array value cannot be mapped to a unique cache key.
+            if (!is_string($cookie_value)) {
+                return true;
+            }
+        }
+
         global $TwoSettings;
         $rejected_cookies = '#wp-postpass_|wptouch_switch_toggle|comment_author_|comment_author_email_';
 
@@ -117,6 +124,38 @@ class OptimizerWebPageValidations
         return count($excluded_cookies) > 0;
     }
 
+    /**
+     * Tell if the request host and path map to a unique cache directory.
+     * Requests with a missing or invalid host, or with path parts that the
+     * path builder would remove or re-encode ('\', NUL, '#', '<', all-dot
+     * segments, a segment starting with '@'), are not cached, so they can
+     * never share a cache key with another URL. Raw values are checked:
+     * strip_tags() in the path builder removes NUL bytes and "<...>".
+     */
+    public function allowed_cache_path()
+    {
+        $host = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : ''; // phpcs:ignore
+
+        // A Host header is ASCII (IDN is sent as punycode), with an optional port or IPv6 brackets.
+        if (!is_string($host) || !preg_match('/^[A-Za-z0-9._:\[\]-]+$/D', $host) || trim($host, '.') === '') {
+            return false;
+        }
+
+        $path = explode('?', $_SERVER['REQUEST_URI'])[0]; // phpcs:ignore
+
+        if (strpbrk($path, "\\\0#<") !== false) {
+            return false;
+        }
+
+        foreach (explode('/', $path) as $segment) {
+            if (($segment !== '' && trim($segment, '.') === '') || strpos($segment, '@') === 0) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
     public function reject_ua()
     {
         $rejected_uas = 'facebookexternalhit|WhatsApp';
@@ -130,6 +169,13 @@ class OptimizerWebPageValidations
 
         if (empty($get_params)) {
             return true;
+        }
+
+        foreach ($get_params as $param_value) {
+            // An array value (e.g. ?x[]=1) cannot be mapped to a unique cache key.
+            if (!is_string($param_value)) {
+                return false;
+            }
         }
 
         $allowed_params = [

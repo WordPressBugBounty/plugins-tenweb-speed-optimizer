@@ -69,6 +69,12 @@ class OptimizerWebPageCache
 
         if ($this->can_process_page()) {
             $this->init();
+
+            // Security: never read, serve or write a cache entry whose path
+            // resolves outside the cache root.
+            if (!self::is_within_cache_dir($this->cache_dir)) {
+                return;
+            }
             $this->maybe_clear_all_cache();
             $this->process_page();
         }
@@ -186,6 +192,21 @@ class OptimizerWebPageCache
 
     protected function cache_content($buffer)
     {
+        // Security: never create or write a cache entry outside the cache root,
+        // even if request-derived input (query string, Host, URI, cookie) tried
+        // to traverse out of it. Backstop for the sanitization done when building
+        // the path - see get_cache_file_dir() and get_cache_dir_for_page().
+        if (!self::is_within_cache_dir($this->cache_dir)) {
+            return $buffer;
+        }
+
+        // Check cacheability before creating any directory, so a non-cacheable
+        // response (404, redirect, < 255 bytes, no </html>) cannot be used to
+        // create empty cache directories on repeated requests.
+        if (!$this->validator->valid_buffer_to_cache($buffer)) {
+            return $buffer;
+        }
+
         if (!is_dir($this->cache_dir)) {
             if (!mkdir($concurrentDirectory = $this->cache_dir, 0777, true) && !is_dir($concurrentDirectory)) { // phpcs:ignore
                 return $buffer;
@@ -193,10 +214,6 @@ class OptimizerWebPageCache
         }
 
         if (!is_writable($this->cache_dir) || !is_readable($this->cache_dir)) { // phpcs:ignore
-            return $buffer;
-        }
-
-        if (!$this->validator->valid_buffer_to_cache($buffer)) {
             return $buffer;
         }
 
@@ -230,6 +247,10 @@ class OptimizerWebPageCache
         }
 
         if ($this->validator->reject_uri()) {
+            return false;
+        }
+
+        if (!$this->validator->allowed_cache_path()) {
             return false;
         }
 
@@ -293,7 +314,8 @@ class OptimizerWebPageCache
             $cookie_string = '@';
 
             foreach ($cookies as $cookie_name => $cookie_value) {
-                $cookie_string .= $cookie_name . '=' . $cookie_value . '&';
+                $cookie_string .= self::sanitize_cache_path_component($cookie_name) . '='
+                    . self::sanitize_cache_path_component($cookie_value) . '&';
             }
 
             $cookie_string = rtrim($cookie_string, '&');
@@ -309,7 +331,8 @@ class OptimizerWebPageCache
         $query_string = '#';
 
         foreach ($query_params as $param_name => $param_value) {
-            $query_string .= $param_name . '=' . $param_value . '&';
+            $query_string .= self::sanitize_cache_path_component($param_name) . '='
+                . self::sanitize_cache_path_component($param_value) . '&';
         }
 
         $query_string = rtrim($query_string, '&');
@@ -348,8 +371,10 @@ class OptimizerWebPageCache
             return;
         }
 
-        // Prevent directory traversal - ensure path is within cache directory
-        if (strpos($real_dir, $real_allowed_dir) !== 0) {
+        // Prevent directory traversal - ensure path is within cache directory.
+        // Require an exact match or a real child (trailing separator) so a
+        // sibling such as "page_cache_x" cannot match the "page_cache" prefix.
+        if ($real_dir !== $real_allowed_dir && strpos($real_dir, $real_allowed_dir . DIRECTORY_SEPARATOR) !== 0) {
             return;
         }
 
@@ -364,7 +389,7 @@ class OptimizerWebPageCache
                 // Additional safety check for each path
                 $real_path = realpath($path);
 
-                if ($real_path === false || strpos($real_path, $real_allowed_dir) !== 0) {
+                if ($real_path === false || strpos($real_path, $real_allowed_dir . DIRECTORY_SEPARATOR) !== 0) {
                     continue;
                 }
 
@@ -404,11 +429,24 @@ class OptimizerWebPageCache
     public static function get_cache_dir_for_page($host, $request_uri)
     {
         $is_home_page = self::is_home($request_uri);
+        $host = self::sanitize_cache_path_segment($host);
         $cache_dir_name = '';
 
         if (!$is_home_page) {
             $cache_dir_name = rtrim($request_uri, '/');
             $cache_dir_name = ltrim($cache_dir_name, '/');
+
+            // Encode each URI path segment so it cannot traverse out of the
+            // cache root. '/' between segments is kept (legitimate nesting).
+            $segments = [];
+
+            foreach (explode('/', $cache_dir_name) as $segment) {
+                if ($segment !== '') {
+                    $segments[] = self::sanitize_cache_path_segment($segment);
+                }
+            }
+
+            $cache_dir_name = implode('/', $segments);
         }
         global $TwoSettings;
         $cache_hash = '';
@@ -422,7 +460,7 @@ class OptimizerWebPageCache
 
             if (! empty($cookie_name)) {
                 $cookie_name = reset($cookie_name);
-                $cookie_value = $cookies[ $cookie_name ];
+                $cookie_value = is_string($cookies[ $cookie_name ]) ? $cookies[ $cookie_name ] : '';
                 $username = explode('|', $cookie_value)[ 0 ];
             }
 
@@ -433,7 +471,7 @@ class OptimizerWebPageCache
                 // it will pass if both cookies are just identical,
                 // needs to be improved to make sure user is logged in.
                 if (md5($cookie_value) === $unique_hash) {
-                    $cache_hash = '-' . $username . '-' . $unique_hash;
+                    $cache_hash = '-' . self::sanitize_cache_path_segment($username) . '-' . $unique_hash;
                 }
             }
         }
@@ -441,7 +479,7 @@ class OptimizerWebPageCache
         // add $host, to support multisite to
         $cache_dir = TENWEB_SO_PAGE_CACHE_DIR . $host . $cache_hash . '/';
 
-        if ($cache_dir_name) {
+        if ($cache_dir_name !== '') {
             $cache_dir .= $cache_dir_name . '/';
         }
 
@@ -470,7 +508,93 @@ class OptimizerWebPageCache
 
     public static function is_home($request_uri)
     {
-        return empty(ltrim($request_uri, '/'));
+        // Compare with '' instead of empty(), so a "/0" page is not the home page.
+        return ltrim($request_uri, '/') === '';
+    }
+
+    /**
+     * Encode a query param or cookie name/value for the "#name=value&..." and
+     * "@name=value&..." parts of the cache path. The encoding is reversible,
+     * so two different requests never share a cache key, and it removes every
+     * character that could split or traverse the path.
+     */
+    protected static function sanitize_cache_path_component($value)
+    {
+        return str_replace(
+            ['%', '/', '\\', "\0", '&', '='],
+            ['%25', '%2F', '%5C', '%00', '%26', '%3D'],
+            (string) $value
+        );
+    }
+
+    /**
+     * Encode a host, username or URI path segment so it is always one literal
+     * directory name. Existing percent-encoding is kept, so cache directories
+     * of percent-encoded slugs keep their names.
+     */
+    protected static function sanitize_cache_path_segment($value)
+    {
+        $value = str_replace(['/', '\\', "\0", '#'], ['%2F', '%5C', '%00', '%23'], (string) $value);
+
+        // A leading '@' would look like the cookie part of the cache path.
+        if (strpos($value, '@') === 0) {
+            $value = '%40' . substr($value, 1);
+        }
+
+        // '.' and '..' must never be used as path segments.
+        if ($value !== '' && trim($value, '.') === '') {
+            $value = str_replace('.', '%2E', $value);
+        }
+
+        return $value;
+    }
+
+    /**
+     * Tell if $dir is TENWEB_SO_PAGE_CACHE_DIR or a directory inside it.
+     * Both paths are compared lexically, so the check also works before the
+     * directories exist (fresh install, after "clear all cache").
+     */
+    protected static function is_within_cache_dir($dir)
+    {
+        if (!is_string($dir) || $dir === '' || strpos($dir, "\0") !== false) {
+            return false;
+        }
+
+        $root = self::normalize_path(TENWEB_SO_PAGE_CACHE_DIR);
+        $dir = self::normalize_path($dir);
+
+        return $dir === $root || strpos($dir, $root . '/') === 0;
+    }
+
+    /**
+     * Resolve '.' and '..' segments and unify separators without touching the
+     * filesystem. A Windows drive letter is kept.
+     */
+    protected static function normalize_path($path)
+    {
+        $path = str_replace('\\', '/', $path);
+        $drive = '';
+
+        if (preg_match('#^[A-Za-z]:/#', $path)) {
+            $drive = substr($path, 0, 2);
+            $path = substr($path, 2);
+        }
+        $resolved = [];
+
+        foreach (explode('/', $path) as $segment) {
+            if ($segment === '' || $segment === '.') {
+                continue;
+            }
+
+            if ($segment === '..') {
+                array_pop($resolved);
+                continue;
+            }
+
+            $resolved[] = $segment;
+        }
+
+        return $drive . '/' . implode('/', $resolved);
     }
 
     public static function get_instance()

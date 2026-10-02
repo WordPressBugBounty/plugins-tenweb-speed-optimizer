@@ -4,7 +4,7 @@
  * Plugin Name: 10Web Booster
  * Plugin URI: https://10web.io/page-speed-booster/
  * Description: Optimize your website speed and performance with 10Web Booster by compressing CSS and JavaScript.
- * Version: 2.34.5
+ * Version: 2.34.8
  * Author: 10Web - Website speed optimization team
  * Author URI: https://10web.io/
  * Text Domain: tenweb-speed-optimizer
@@ -28,6 +28,10 @@ if (!defined('TWO_PLUGIN_FILE')) {
 }
 
 if (isset($_GET['two_check_redirect']) && $_GET['two_check_redirect'] === '1') { // phpcs:ignore
+    return;
+}
+
+if (isset($_GET['page']) && $_GET['page'] === 'wvc-editor') { // phpcs:ignore
     return;
 }
 
