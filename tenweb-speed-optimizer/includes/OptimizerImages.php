@@ -381,7 +381,7 @@ class OptimizerImages
                 $tag = '<div class="' . $class_name . '" data-id="' . $video_id . '" data-thumb="" data-logo="2"></div>';
                 $this->smart_lazy_load_data('two_youtube_vimeo_iframe_lazyload');
             } else {
-                $tag = str_replace('src=', ' src="" data-src=', $tag);
+                $tag = OptimizerUtils::replace_src_attribute($tag, ' src="" data-src=');
             }
         }
 
@@ -442,7 +442,7 @@ class OptimizerImages
         if ($this->browser_lazy) {
             $tag = str_replace('<img', '<img loading="lazy"', $tag);
         } elseif (!$pos) {
-            $tag = str_replace(' src=', ' src=\'' . $placeholder . '\' data-src=', $tag);
+            $tag = OptimizerUtils::replace_src_attribute($tag, ' src=\'' . $placeholder . '\' data-src=');
         }
 
         return $tag;
@@ -454,7 +454,7 @@ class OptimizerImages
         $two_lazyload = empty($this->TwoSettings->get_settings('two_lazyload', 'off')) ? 'off' : 'on';
 
         if ($this->isImage($tag) && ($this->isExcluded($tag, 'two_exclude_lazyload') || $two_lazyload === 'off')) {
-            return str_replace(' src=', ' ' . esc_attr(OptimizerScripts::TWO_DISABLE_PAGESPEED_DEFER_ATTRIBUTE) . ' src=', $tag);
+            return OptimizerUtils::replace_src_attribute($tag, ' ' . esc_attr(OptimizerScripts::TWO_DISABLE_PAGESPEED_DEFER_ATTRIBUTE) . ' src=');
         }
 
         return $tag;
@@ -466,7 +466,7 @@ class OptimizerImages
         $two_do_not_optimize_images = empty($this->TwoSettings->get_settings('two_do_not_optimize_images', 'off')) ? 'off' : 'on';
 
         if ($this->isImage($tag) && ($this->isExcluded($tag, 'two_exclude_images_for_optimize') || $two_do_not_optimize_images === 'on')) {
-            return str_replace(' src=', ' data-pagespeed-no-transform src=', $tag);
+            return OptimizerUtils::replace_src_attribute($tag, ' data-pagespeed-no-transform src=');
         }
 
         return $tag;
@@ -570,8 +570,19 @@ class OptimizerImages
 
     public static function inject_classes_in_tag($tag, $target_class)
     {
-        if (strpos($tag, 'class=') !== false) {
-            $tag = preg_replace('/(\sclass\s?=\s?("|\'))/', '$1 ' . $target_class . ' ', $tag);
+        // Only the real class attribute is matched: attribute values (alt, title...) are skipped as a whole.
+        $class_pattern = '/^(<[a-z][^\s>\/]*(?:\s+[^\s=>\/"\']+(?:\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s"\'=<>`]+))?)*?\s+class\s*=\s*)(?:(["\'])|([^\s"\'=<>`]+))/is';
+        $with_class = preg_replace_callback($class_pattern, function ($m) use ($target_class) {
+            if (isset($m[3]) && $m[3] !== '') {
+                // unquoted value: quote it so the original class is kept.
+                return $m[1] . '"' . $target_class . ' ' . $m[3] . '"';
+            }
+
+            return $m[1] . $m[2] . ' ' . $target_class . ' ';
+        }, $tag, 1, $class_count);
+
+        if ($with_class !== null && $class_count > 0) {
+            $tag = $with_class;
         } else {
             if (strpos($tag, '<img') !== false) {
                 $tag = str_replace('<img', '<img class="' . trim($target_class) . '" ', $tag);

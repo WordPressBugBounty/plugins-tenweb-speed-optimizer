@@ -1213,12 +1213,26 @@ class OptimizerUtils
         </script>';
     }
 
+    /**
+     * Replaces the real `src` attribute of a tag only. Attribute values are skipped as a whole,
+     * so a " src=" text inside another attribute value (e.g. a comment author name in alt) is never touched.
+     */
+    public static function replace_src_attribute($tag, $replacement)
+    {
+        $pattern = '/^(<[a-z][^\s>\/]*(?:\s+[^\s=>\/"\']+(?:\s*=\s*(?:"[^"]*"|\'[^\']*\'|[^\s"\'=<>`]+))?)*?)\s+src=/is';
+        $result = preg_replace_callback($pattern, function ($m) use ($replacement) {
+            return $m[1] . $replacement;
+        }, $tag, 1);
+
+        return $result === null ? $tag : $result;
+    }
+
     public static function clear_iframe_src($content)
     {
         if (preg_match_all('#<iframe[^>]*src[^>]*>#Usmi', $content, $matches)) {
             // only used is image optimization is NOT active but lazyload is.
             foreach ($matches[0] as $tag) {
-                $new_tag = str_replace(' src=', ' src="" data-two_src=', $tag);
+                $new_tag = self::replace_src_attribute($tag, ' src="" data-two_src=');
                 $content = str_replace($tag, $new_tag, $content);
             }
         }
