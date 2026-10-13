@@ -98,6 +98,12 @@ class CompressService
      */
     public function compressCustom($image_urls, $page_id, $only_convert_webp = 0, $origin = 'io')
     {
+        // Security: page_id is used to build the queue directory and file name; reject anything
+        // that is not a safe slug (blocks path traversal and dangerous extensions such as .php).
+        $page_id = Utils::sanitizePageId($page_id);
+        if ($page_id === '') {
+            return false;
+        }
         if (!$this->restart) {
             $attachments = new Attachments();
             $this->images = $attachments->getCustomAttachmentsData($image_urls);
@@ -169,7 +175,13 @@ class CompressService
     {
         $queue_dir = Utils::getQueueDir($type);
         $this->restart_body['restart'] = 1;
-        $this->restart_body['tenwebio_nonce'] = wp_create_nonce('tenwebio_rest');
+        // Security: authenticate the internal loopback restart with a single-use, short-lived
+        // token held server-side (hashed in a site transient), instead of a reusable nonce that
+        // used to be serialized into the publicly readable restart file.
+        $restart_token = wp_generate_password(43, false, false);
+        set_site_transient(TENWEBIO_PREFIX . '_restart_token_' . $type, wp_hash($restart_token), 15 * MINUTE_IN_SECONDS);
+        $this->restart_body['tenwebio_restart_token'] = $restart_token;
+        $this->restart_body['tenwebio_restart_type'] = $type;
 
         return QueueOrchestrator::initQueue(new QueueConfigDTO([
             'connection_type'         => 'file',

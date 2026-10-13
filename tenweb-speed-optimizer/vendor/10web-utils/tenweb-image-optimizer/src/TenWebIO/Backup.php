@@ -94,16 +94,22 @@ class Backup
         closedir($directory);
     }
 
-    public function deleteBackup()
+    public function deleteBackup($dir = null)
     {
-        foreach (glob("{$this->backup_dir}/*") as $file) {
+        if ($dir === null) {
+            $dir = $this->backup_dir;
+        }
+        if (!is_dir($dir)) {
+            return;
+        }
+        foreach (glob("$dir/*") as $file) {
             if (is_dir($file)) {
                 $this->deleteBackup($file);
             } else {
                 unlink($file);
             }
         }
-        rmdir($this->backup_dir);
+        rmdir($dir);
     }
 
 }

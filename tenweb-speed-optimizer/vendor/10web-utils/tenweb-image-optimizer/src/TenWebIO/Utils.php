@@ -110,27 +110,47 @@ class Utils
         if ($clear_booster_cache) {
             Utils::clearSpeedCache();
         }
-        /*$config = new Config();
-        if ($type === 'bulk' && $retry_queue_chunks) {
-            self::compressBulkRequest();
-        }*/
     }
 
-    public static function compressBulkRequest()
+    /**
+     * Validate a queue page_id / backup type to a safe slug.
+     *
+     * All legitimate values produced by the plugin (front_page, shop int, term_<id>,
+     * user_<id>, numeric IDs, no_critical_<md5>) match this pattern unchanged. Anything
+     * containing '.', '/', '\' or exceeding the length cap is rejected (returns '').
+     *
+     * @param mixed $page_id
+     *
+     * @return string
+     */
+    public static function sanitizePageId($page_id)
     {
-        $route = add_query_arg(array('rest_route' => '/tenwebio/v2/compress', 'chunk' => rand(1, 5000)), get_home_url() . "/");
-        wp_remote_post($route, array('method' => 'POST', 'sslverify' => false, 'timeout' => 0.1, 'body' => array(
-            'tenwebio_nonce' => wp_create_nonce('tenwebio_rest')
-        )));
+        $page_id = (string) $page_id;
+
+        return preg_match('/^[A-Za-z0-9_-]{1,64}$/', $page_id) ? $page_id : '';
     }
 
-    public static function compressOneRequest($id)
+    /**
+     * Drop access-control files into a queue/backup directory so its contents cannot be
+     * read or executed over HTTP on Apache, and are not listable.
+     *
+     * @param string $dir
+     *
+     * @return void
+     */
+    public static function protectDir($dir)
     {
-        $route = add_query_arg(array('rest_route' => '/tenwebio/v2/compress-one', 'single' => $id), get_home_url() . "/");
-        wp_remote_post($route, array('method' => 'POST', 'sslverify' => false, 'timeout' => 0.1, 'body' => array(
-            "id"             => $id,
-            'tenwebio_nonce' => wp_create_nonce('tenwebio_rest')
-        )));
+        $htaccess = $dir . DIRECTORY_SEPARATOR . '.htaccess';
+        if (!is_file($htaccess)) {
+            @file_put_contents($htaccess,
+                "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n" .
+                "<IfModule !mod_authz_core.c>\nOrder allow,deny\nDeny from all\n</IfModule>\n"); // phpcs:ignore
+        }
+        $index = $dir . DIRECTORY_SEPARATOR . 'index.html';
+        if (!is_file($index)) {
+            @file_put_contents($index,
+                '<html><head><meta name="robots" content="noindex, nofollow"></head><body></body></html>'); // phpcs:ignore
+        }
     }
 
     /**
@@ -165,6 +185,7 @@ class Utils
         if (!is_dir($queue_dir)) {
             mkdir($queue_dir);
         }
+        self::protectDir($queue_dir);
 
         return $queue_dir;
     }

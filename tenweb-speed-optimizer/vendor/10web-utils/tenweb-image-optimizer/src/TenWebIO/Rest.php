@@ -122,16 +122,24 @@ class Rest extends \WP_REST_Controller
                 )
             );
         } else {
-            if (!empty($request->get_param('tenwebio_nonce'))) {
-                if (!check_ajax_referer('tenwebio_rest', 'tenwebio_nonce', false)) {
+            $restart_token = $request->get_param('tenwebio_restart_token');
+            if (!empty($restart_token)) {
+                // Internal loopback restart: verify the single-use token minted in
+                // CompressService::createQueue and consume it (one restart per token).
+                $type = Utils::sanitizePageId($request->get_param('tenwebio_restart_type'));
+                $transient_key = TENWEBIO_PREFIX . '_restart_token_' . $type;
+                $stored = get_site_transient($transient_key);
+                if ($type === '' || empty($stored) || !hash_equals($stored, wp_hash($restart_token))) {
                     $unauthorized = true;
                     $unauthorized_response = array(
-                        "code"    => "wrong_nonce",
-                        "message" => "Wrong nonce.",
+                        "code"    => "wrong_token",
+                        "message" => "Wrong token.",
                         "data"    => array(
                             "status" => 401
                         )
                     );
+                } else {
+                    delete_site_transient($transient_key);
                 }
             } else {
                 $auth = Helper::get_instance();
@@ -302,7 +310,16 @@ class Rest extends \WP_REST_Controller
             $restart = true;
         }
         $image_urls = $request->get_param('image_urls');
-        $page_id = $request->get_param('page_id');
+        $page_id = Utils::sanitizePageId($request->get_param('page_id'));
+        if ($page_id === '') {
+            $this->status = 400;
+            $this->response = array(
+                "status"  => 400,
+                "message" => "invalid page_id",
+            );
+
+            return;
+        }
         $only_convert_webp = (int)$request->get_param('only_convert_webp');
         $origin = $request->get_param('origin');
         try {
@@ -401,7 +418,10 @@ class Rest extends \WP_REST_Controller
     private function restoreBackup($request)
     {
         try {
-            $type = $request->get_param('type') ? $request->get_param('type') : 'bulk';
+            $type = Utils::sanitizePageId($request->get_param('type'));
+            if ($type === '') {
+                $type = 'bulk';
+            }
             $backup = new Backup($type);
             $backup->restoreOriginalImages();
             $this->status = 200;
@@ -426,7 +446,10 @@ class Rest extends \WP_REST_Controller
     private function deleteBackup($request)
     {
         try {
-            $type = $request->get_param('type') ? $request->get_param('type') : 'bulk';
+            $type = Utils::sanitizePageId($request->get_param('type'));
+            if ($type === '') {
+                $type = 'bulk';
+            }
             $backup = new Backup($type);
             $backup->deleteBackup();
             $this->status = 200;

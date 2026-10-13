@@ -73,11 +73,21 @@ trait QueueRestart
      */
     public static function readObjectFromFile($path)
     {
-        if (is_file($path)) {
-            return unserialize(file_get_contents($path));
+        if (!is_file($path)) {
+            return null;
         }
 
-        return null;
+        // Security/robustness: the restart file lives in a web-writable directory. A corrupt or
+        // tampered file must not fatal the request (callback only catches \Exception, not \Error).
+        try {
+            $object = @unserialize(file_get_contents($path));
+        } catch (\Throwable $e) {
+            @unlink($path);
+
+            return null;
+        }
+
+        return $object;
     }
 
     /**

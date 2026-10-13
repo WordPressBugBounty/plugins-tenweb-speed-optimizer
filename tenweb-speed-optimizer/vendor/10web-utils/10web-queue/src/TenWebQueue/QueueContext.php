@@ -96,6 +96,11 @@ class QueueContext
         $instance = self::readObjectFromFile($config->restartFilePath);
         if (!($instance instanceof self) || $config->force) {
             $instance = new self($config);
+        } else {
+            // Security: the persisted instance carries a secret-free restart body (see dequeue()).
+            // Adopt the freshly built config so this hop uses the newly minted single-use restart
+            // token and current route, instead of the stale on-disk copy.
+            $instance->config = $config;
         }
         $instance->setUpQueue($producerClass, $consumerClass);
 
@@ -192,7 +197,13 @@ class QueueContext
             while ($this->consumer->run()) {
                 if ($this->ifRestartNeeded($count, $this->config->itemsCountForRestart)) {
                     $this->unSetQueue();
-                    self::writeObjectInfile($this, $this->config->restartFilePath);
+                    // Security: never persist the restart body (it holds a single-use auth token)
+                    // to the restart file, which lives in a publicly readable uploads directory.
+                    // Write a secret-free snapshot; the live object keeps the body for the POST below.
+                    $snapshot = clone $this;
+                    $snapshot->config = clone $this->config;
+                    $snapshot->config->restartBody = array();
+                    self::writeObjectInfile($snapshot, $this->config->restartFilePath);
                     $this->restart($this->config->restartRoute, $this->config->restartBody);
                 }
                 $count++;

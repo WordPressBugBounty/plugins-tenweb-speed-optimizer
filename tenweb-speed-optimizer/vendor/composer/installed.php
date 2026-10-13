@@ -3,7 +3,7 @@
         'name' => 'plugins/tenweb-speed-optimizer',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => 'da523d211b259e9c505e269f220e70a5ee5fe7b9',
+        'reference' => 'b430cd4e6c5a6fe6f8534676ae5f4e910e638687',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         '10web-utils/10web-queue' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'fb3aa8f9a6c1487228d395b3480c8a10072c0f5c',
+            'reference' => '349df82b8a322b27963983d1b7548e6e3ddd6def',
             'type' => 'git',
             'install_path' => __DIR__ . '/../10web-utils/10web-queue',
             'aliases' => array(
@@ -46,7 +46,7 @@
         '10web-utils/tenweb-image-optimizer' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'd734fa42b3bb567388a48bce1f4c452a4892860f',
+            'reference' => '12d9d4942bd4c868e0cdfd27f630ac9deff4d457',
             'type' => 'git',
             'install_path' => __DIR__ . '/../10web-utils/tenweb-image-optimizer',
             'aliases' => array(
@@ -162,7 +162,7 @@
         'plugins/tenweb-speed-optimizer' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => 'da523d211b259e9c505e269f220e70a5ee5fe7b9',
+            'reference' => 'b430cd4e6c5a6fe6f8534676ae5f4e910e638687',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

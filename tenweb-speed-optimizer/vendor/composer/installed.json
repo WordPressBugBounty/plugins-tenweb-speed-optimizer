@@ -7,7 +7,7 @@
             "source": {
                 "type": "git",
                 "url": "ssh://git@gitlab.10web.io:6202/10web-utils/10web-queue.git",
-                "reference": "fb3aa8f9a6c1487228d395b3480c8a10072c0f5c"
+                "reference": "349df82b8a322b27963983d1b7548e6e3ddd6def"
             },
             "require": {
                 "enqueue/fs": "^0.10.0"
@@ -15,7 +15,7 @@
             "require-dev": {
                 "roave/security-advisories": "dev-latest"
             },
-            "time": "2023-04-20T13:27:11+00:00",
+            "time": "2026-10-11T11:59:06+00:00",
             "default-branch": true,
             "type": "git",
             "installation-source": "source",
@@ -88,7 +88,7 @@
             "source": {
                 "type": "git",
                 "url": "ssh://git@gitlab.10web.io:6202/10web-utils/tenweb-image-optimizer.git",
-                "reference": "d734fa42b3bb567388a48bce1f4c452a4892860f"
+                "reference": "12d9d4942bd4c868e0cdfd27f630ac9deff4d457"
             },
             "require": {
                 "10web-utils/10web-queue": "dev-master",
@@ -96,7 +96,7 @@
                 "10web/authorization": "dev-master",
                 "enqueue/fs": "^0.10.0"
             },
-            "time": "2024-08-29T10:18:51+00:00",
+            "time": "2026-10-11T11:59:06+00:00",
             "default-branch": true,
             "type": "git",
             "installation-source": "source",
